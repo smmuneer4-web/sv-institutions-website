@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
 import { ArrowUpRight, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { scrollToId } from "@/lib/scroll";
 
 const HERO_IMG =
@@ -19,6 +20,7 @@ const fade = (d) => ({
 });
 
 export default function Hero() {
+  const navigate = useNavigate();
   const imgRef = useRef(null);
   const sectionRef = useRef(null);
   const rotX = useSpring(useMotionValue(0), { stiffness: 120, damping: 18 });
@@ -85,7 +87,7 @@ export default function Hero() {
           <motion.div {...fade(0.8)} className="mt-9 flex flex-wrap items-center gap-4">
             <button
               data-testid="hero-apply-btn"
-              onClick={() => scrollToId("#apply")}
+              onClick={() => navigate("/apply")}
               className="group inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-8 py-4 text-sm font-semibold text-white shadow-xl shadow-rose-900/25 transition-all duration-300 hover:scale-[1.04] hover:bg-[#9F1239]"
             >
               Apply Now
