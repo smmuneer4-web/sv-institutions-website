@@ -29,7 +29,13 @@ JWT_ALGORITHM = "HS256"
 
 
 def get_jwt_secret() -> str:
-    return os.environ["JWT_SECRET"]
+    secret = os.environ.get("JWT_SECRET")
+    if not secret:
+        raise HTTPException(
+            status_code=500,
+            detail="Server misconfiguration: JWT_SECRET is not set in the hosting environment variables",
+        )
+    return secret
 
 
 def coerce_object_id(v):
