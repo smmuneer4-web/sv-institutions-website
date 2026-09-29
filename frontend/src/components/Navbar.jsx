@@ -34,7 +34,7 @@ export default function Navbar() {
               className="h-12 w-12 rounded-full bg-white object-cover ring-1 ring-rose-100"
             />
             <span className="text-left leading-tight">
-              <span className="block font-display text-xl font-semibold tracking-tight text-[#22090F]">
+              <span className="block font-display text-2xl font-semibold tracking-tight text-[#22090F]">
                 S V GROUP OF INSTITUTIONS
               </span>
             </span>

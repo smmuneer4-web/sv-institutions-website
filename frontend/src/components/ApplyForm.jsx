@@ -84,7 +84,7 @@ export default function ApplyForm() {
             <div className="relative mt-12 space-y-5">
               {[
                 { icon: MapPin, text: "80 Feet Ring Road, Near Bangalore University, Mallathahalli Bus Stop, Bangalore - 560056" },
-                { icon: Phone, text: "+91 90370 41972" },
+                { icon: Phone, text: "+91 90378 34632" },
                 { icon: Mail, text: "admissions@svinstitutions.co.in" },
               ].map((c) => (
                 <div key={c.text} className="flex items-start gap-4">
