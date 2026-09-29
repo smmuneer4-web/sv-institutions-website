@@ -398,6 +398,9 @@ export default function AdminPage() {
             <span className="hidden items-center gap-2 rounded-full bg-teal-50 px-4 py-2 text-xs font-bold text-[#0F766E] sm:inline-flex">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[#0D9488]" /> Admin session · {user.email}
             </span>
+            <a href="/admin/students" data-testid="admin-students-page-link" className="hidden text-xs font-bold text-slate-500 hover:text-[#BE185D] sm:inline">
+              Students &amp; Fees
+            </a>
             <a href="/" data-testid="admin-back-to-site-link" className="hidden text-xs font-bold text-slate-500 hover:text-[#BE185D] sm:inline">
               View Website
             </a>

@@ -325,6 +325,9 @@ class Application(BaseDocument):
     agree_communication: bool = False
     signature: str = ""
 
+    fee_total: float = 0.0
+    payments: List[Dict[str, Any]] = Field(default_factory=list)
+
 
 class ApplicationCreate(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -434,6 +437,55 @@ async def update_application(application_id: str, input: ApplicationUpdate, user
         raise HTTPException(status_code=422, detail="Nothing to update")
     doc = await db.applications.find_one_and_update(
         {"_id": application_id}, {"$set": updates}, return_document=ReturnDocument.AFTER
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return Application.from_mongo(doc)
+
+
+class FeePlanUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    fee_total: float = 0.0
+
+
+class PaymentAdd(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    amount: float
+    reference: str = ""
+
+
+@api_router.get("/applications/by-number/{application_number}", response_model=Application)
+async def get_application_by_number(application_number: str, user: dict = Depends(get_current_user)):
+    doc = await db.applications.find_one({"application_number": application_number})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return Application.from_mongo(doc)
+
+
+@api_router.patch("/applications/{application_id}/fees", response_model=Application)
+async def set_fee_plan(application_id: str, input: FeePlanUpdate, user: dict = Depends(get_current_user)):
+    if input.fee_total < 0:
+        raise HTTPException(status_code=422, detail="Fee amount cannot be negative")
+    doc = await db.applications.find_one_and_update(
+        {"_id": application_id}, {"$set": {"fee_total": input.fee_total}}, return_document=ReturnDocument.AFTER
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return Application.from_mongo(doc)
+
+
+@api_router.post("/applications/{application_id}/payments", response_model=Application)
+async def add_payment(application_id: str, input: PaymentAdd, user: dict = Depends(get_current_user)):
+    if input.amount <= 0:
+        raise HTTPException(status_code=422, detail="Payment amount must be greater than zero")
+    payment = {
+        "amount": input.amount,
+        "reference": input.reference,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "received_by": user.get("email", ""),
+    }
+    doc = await db.applications.find_one_and_update(
+        {"_id": application_id}, {"$push": {"payments": payment}}, return_document=ReturnDocument.AFTER
     )
     if not doc:
         raise HTTPException(status_code=404, detail="Application not found")
