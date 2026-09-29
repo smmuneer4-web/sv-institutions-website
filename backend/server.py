@@ -186,7 +186,7 @@ async def login(request: Request, response: Response, input: LoginRequest):
     refresh_token = create_refresh_token(str(user["_id"]))
     response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=8 * 3600, path="/")
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=7 * 24 * 3600, path="/")
-    return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name", "Admin"), "role": user.get("role", "admin")}
+    return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name", "Admin"), "role": user.get("role", "admin"), "access_token": access_token, "refresh_token": refresh_token}
 
 
 def request_client_ip(request: Request) -> str:
@@ -205,9 +205,16 @@ async def me(request: Request, user: dict = Depends(get_current_user)):
     return user
 
 
+class RefreshRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    refresh_token: str = ""
+
+
 @api_router.post("/auth/refresh")
-async def refresh(request: Request, response: Response):
+async def refresh(request: Request, response: Response, input: Optional[RefreshRequest] = None):
     token = request.cookies.get("refresh_token")
+    if not token and input is not None:
+        token = input.refresh_token
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
@@ -219,7 +226,7 @@ async def refresh(request: Request, response: Response):
             raise HTTPException(status_code=401, detail="User not found")
         access_token = create_access_token(str(user["_id"]), user["email"])
         response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=8 * 3600, path="/")
-        return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name", "Admin"), "role": user.get("role", "admin")}
+        return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name", "Admin"), "role": user.get("role", "admin"), "access_token": access_token, "refresh_token": token}
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Session expired, please log in again")
     except jwt.InvalidTokenError:

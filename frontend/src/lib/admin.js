@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
-import { api, formatApiError } from "./api";
+import { api, formatApiError, clearAuth } from "./api";
 
 export const STATUSES = ["submitted", "shortlist", "approved", "rejected"];
 export const COLLEGES = ["S V College of Nursing", "D R Vijayakumari School of Nursing"];
@@ -93,6 +93,7 @@ export function Topbar({ user, active = "", children }) {
             data-testid="admin-logout-button"
             onClick={async () => {
               await api.post("/auth/logout").catch(() => {});
+              clearAuth();
               window.location.href = "/admin";
             }}
             className="inline-flex items-center gap-2 rounded-full border border-rose-200 px-5 py-2.5 text-xs font-bold text-[#9F1239] transition-colors hover:bg-rose-50"

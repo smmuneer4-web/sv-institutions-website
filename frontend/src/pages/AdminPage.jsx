@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, Search, X, MessageCircle, Mail, Trash2, RefreshCw, ExternalLink, ChevronRight } from "lucide-react";
-import { api, formatApiError } from "../lib/api";
+import { api, formatApiError, saveAuth, clearAuth } from "../lib/api";
 import { useLenisStop } from "../lib/scroll";
 
 const STATUSES = ["submitted", "shortlist", "approved", "rejected"];
@@ -332,6 +332,7 @@ export default function AdminPage() {
                   email: e.target.email.value,
                   password: e.target.password.value,
                 });
+                saveAuth(data);
                 setUser(data);
               } catch (err) {
                 setError(formatApiError(err));
@@ -408,6 +409,7 @@ export default function AdminPage() {
               data-testid="admin-logout-button"
               onClick={async () => {
                 await api.post("/auth/logout").catch(() => {});
+                clearAuth();
                 setUser(false);
               }}
               className="inline-flex items-center gap-2 rounded-full border border-rose-200 px-5 py-2.5 text-xs font-bold text-[#9F1239] transition-colors hover:bg-rose-50"
