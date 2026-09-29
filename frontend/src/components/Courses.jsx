@@ -1,6 +1,8 @@
-import { Check, ArrowUpRight, Clock, GraduationCap } from "lucide-react";
+import { useState } from "react";
+import { Check, ArrowUpRight, Clock, GraduationCap, FileText } from "lucide-react";
 import { Reveal, SectionHead } from "@/components/Reveal";
 import { prefillEnquiry, scrollToId } from "@/lib/scroll";
+import EnquiryModal from "@/components/EnquiryModal";
 
 const COURSES = [
   {
@@ -42,10 +44,12 @@ const COURSES = [
 ];
 
 export default function Courses() {
+  const [feesOpen, setFeesOpen] = useState(false);
   const apply = (c) => {
     prefillEnquiry({ college: c.college, program: c.name });
     scrollToId("#apply");
   };
+  const fees = () => setFeesOpen(true);
 
   return (
     <section id="courses" className="py-24 lg:py-32">
@@ -108,11 +112,19 @@ export default function Courses() {
                 >
                   Apply for this Course <ArrowUpRight className="h-4 w-4" />
                 </button>
+                <button
+                  data-testid={`course-fees-btn-${c.id}`}
+                  onClick={fees}
+                  className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-full border-2 border-[#0D9488] px-6 py-3 text-sm font-bold text-[#0F766E] transition-all duration-300 hover:bg-[#0D9488] hover:text-white"
+                >
+                  Fees Structure <FileText className="h-4 w-4" />
+                </button>
               </div>
             </Reveal>
           ))}
         </div>
       </div>
+      <EnquiryModal open={feesOpen} onClose={() => setFeesOpen(false)} />
     </section>
   );
 }
