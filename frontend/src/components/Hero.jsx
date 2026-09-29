@@ -1,8 +1,8 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
 import { ArrowUpRight, Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { scrollToId } from "@/lib/scroll";
+import EnquiryModal from "@/components/EnquiryModal";
 
 const HERO_IMG =
   "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?q=80&w=1600&auto=format&fit=crop";
@@ -20,7 +20,7 @@ const fade = (d) => ({
 });
 
 export default function Hero() {
-  const navigate = useNavigate();
+  const [enquiryOpen, setEnquiryOpen] = useState(false);
   const imgRef = useRef(null);
   const sectionRef = useRef(null);
   const rotX = useSpring(useMotionValue(0), { stiffness: 120, damping: 18 });
@@ -86,11 +86,11 @@ export default function Hero() {
 
           <motion.div {...fade(0.8)} className="mt-9 flex flex-wrap items-center gap-4">
             <button
-              data-testid="hero-apply-btn"
-              onClick={() => navigate("/apply")}
+              data-testid="hero-enquire-btn"
+              onClick={() => setEnquiryOpen(true)}
               className="group inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-8 py-4 text-sm font-semibold text-white shadow-xl shadow-rose-900/25 transition-all duration-300 hover:scale-[1.04] hover:bg-[#9F1239]"
             >
-              Apply Now
+              Enquire Now
               <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             </button>
             <button
@@ -182,6 +182,7 @@ export default function Hero() {
           </motion.div>
         </div>
       </div>
+      <EnquiryModal open={enquiryOpen} onClose={() => setEnquiryOpen(false)} />
     </section>
   );
 }
