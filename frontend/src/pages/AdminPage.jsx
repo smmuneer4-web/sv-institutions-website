@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, Search, X, MessageCircle, Mail, Trash2, FileText, Download } from "lucide-react";
-import { api, formatApiError } from "@/lib/api";
-import { useLenisStop } from "@/lib/scroll";
+import { api, formatApiError } from "../lib/api";
+import { useLenisStop } from "../lib/scroll";
 
 const STATUSES = ["submitted", "shortlist", "approved", "rejected"];
 

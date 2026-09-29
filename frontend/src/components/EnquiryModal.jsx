@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2, ArrowUpRight } from "lucide-react";
 import axios from "axios";
-import { useLenisStop } from "@/lib/scroll";
+import { useLenisStop } from "../lib/scroll";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const COLLEGES = ["S V College of Nursing", "D R Vijayakumari School of Nursing"];

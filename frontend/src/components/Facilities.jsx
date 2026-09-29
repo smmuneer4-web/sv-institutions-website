@@ -1,5 +1,5 @@
 import { Building2, BookOpen, FlaskConical, BedDouble, Bus } from "lucide-react";
-import { Reveal, SectionHead } from "@/components/Reveal";
+import { Reveal, SectionHead } from "../components/Reveal";
 
 const LAB_IMG =
   "https://images.unsplash.com/photo-1766297246931-7b861269dab0?q=80&w=1600&auto=format&fit=crop";

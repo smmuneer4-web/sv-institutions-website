@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, Upload, CheckCircle2, ShieldCheck, X } from "lucide-react";
-import { api, formatApiError } from "@/lib/api";
+import { api, formatApiError } from "../lib/api";
 
 const STEPS = ["Basic Info", "Course", "Communication", "Academic", "Payment & Reference", "Declaration"];
 

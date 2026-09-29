@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { MapPin, Phone, Mail, CheckCircle2, ArrowUpRight } from "lucide-react";
-import { scrollToId } from "@/lib/scroll";
+import { scrollToId } from "../lib/scroll";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { Reveal, SectionHead } from "@/components/Reveal";
-import { useLenisStop } from "@/lib/scroll";
+import { Reveal, SectionHead } from "../components/Reveal";
+import { useLenisStop } from "../lib/scroll";
 
 const IMAGES = [
   {

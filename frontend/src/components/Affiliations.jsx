@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BadgeCheck, FileText, X, Download } from "lucide-react";
-import { Reveal } from "@/components/Reveal";
-import { useLenisStop } from "@/lib/scroll";
+import { Reveal } from "../components/Reveal";
+import { useLenisStop } from "../lib/scroll";
 
 const BODIES = [
   {

@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
-import { Reveal, SectionHead } from "@/components/Reveal";
-import { scrollToId } from "@/lib/scroll";
+import { Reveal, SectionHead } from "../components/Reveal";
+import { scrollToId } from "../lib/scroll";
 
 const COLLEGES = [
   {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Menu, X, ArrowUpRight } from "lucide-react";
-import { scrollToId, useLenisStop } from "@/lib/scroll";
+import { scrollToId, useLenisStop } from "../lib/scroll";
 
 const LINKS = [
   { label: "About", id: "#about" },

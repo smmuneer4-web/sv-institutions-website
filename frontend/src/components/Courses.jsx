@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Check, ArrowUpRight, Clock, GraduationCap, FileText } from "lucide-react";
-import { Reveal, SectionHead } from "@/components/Reveal";
-import { prefillEnquiry, scrollToId } from "@/lib/scroll";
-import EnquiryModal from "@/components/EnquiryModal";
+import { Reveal, SectionHead } from "../components/Reveal";
+import { prefillEnquiry, scrollToId } from "../lib/scroll";
+import EnquiryModal from "../components/EnquiryModal";
 
 const COURSES = [
   {

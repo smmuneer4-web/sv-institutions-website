@@ -1,5 +1,5 @@
 import { MapPin, Phone, Mail, ArrowUp } from "lucide-react";
-import { scrollToId } from "@/lib/scroll";
+import { scrollToId } from "../lib/scroll";
 
 const LINKS = [
   { label: "About", id: "#about" },

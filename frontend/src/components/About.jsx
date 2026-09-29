@@ -1,5 +1,5 @@
 import { Stethoscope, MapPin, HeartPulse } from "lucide-react";
-import { Reveal, SectionHead } from "@/components/Reveal";
+import { Reveal, SectionHead } from "../components/Reveal";
 
 const CORRIDOR_IMG =
   "https://images.unsplash.com/photo-1719934398679-d764c1410770?q=80&w=1600&auto=format&fit=crop";

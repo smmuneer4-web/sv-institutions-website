@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
 import { ArrowUpRight, Plus } from "lucide-react";
-import { scrollToId } from "@/lib/scroll";
-import EnquiryModal from "@/components/EnquiryModal";
+import { scrollToId } from "../lib/scroll";
+import EnquiryModal from "../components/EnquiryModal";
 
 const HERO_IMG =
   "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?q=80&w=1600&auto=format&fit=crop";
