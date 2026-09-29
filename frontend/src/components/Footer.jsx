@@ -23,7 +23,7 @@ export default function Footer() {
                 className="h-16 w-16 rounded-full bg-white object-cover ring-1 ring-white/20"
               />
               <div>
-                <p className="font-display text-2xl font-semibold text-white">S V College of Nursing</p>
+                <p className="font-display text-2xl font-semibold text-white">S V GROUP OF INSTITUTIONS</p>
                 <p className="eyebrow mt-1 text-[10px] text-teal-300">S V Group of Institutions</p>
               </div>
             </div>
@@ -68,18 +68,18 @@ export default function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-4 w-4 shrink-0 text-rose-300" />
-                <a href="tel:+919037041972" data-testid="footer-phone-link" className="link-underline hover:text-white">
-                  +91 90370 41972
+                <a href="tel:+919037834632" data-testid="footer-phone-link" className="link-underline hover:text-white">
+                  +91 90378 34632
                 </a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 shrink-0 text-rose-300" />
                 <a
-                  href="mailto:littleflowergroupbng@gmail.com"
+                  href="mailto:admissions@svinstitutions.co.in"
                   data-testid="footer-email-link"
                   className="link-underline break-all hover:text-white"
                 >
-                  littleflowergroupbng@gmail.com
+                  admissions@svinstitutions.co.in
                 </a>
               </li>
             </ul>

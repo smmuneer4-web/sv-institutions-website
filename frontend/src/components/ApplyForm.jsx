@@ -85,7 +85,7 @@ export default function ApplyForm() {
               {[
                 { icon: MapPin, text: "80 Feet Ring Road, Near Bangalore University, Mallathahalli Bus Stop, Bangalore - 560056" },
                 { icon: Phone, text: "+91 90370 41972" },
-                { icon: Mail, text: "littleflowergroupbng@gmail.com" },
+                { icon: Mail, text: "admissions@svinstitutions.co.in" },
               ].map((c) => (
                 <div key={c.text} className="flex items-start gap-4">
                   <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10">

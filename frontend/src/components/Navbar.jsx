@@ -35,9 +35,8 @@ export default function Navbar() {
             />
             <span className="text-left leading-tight">
               <span className="block font-display text-xl font-semibold tracking-tight text-[#22090F]">
-                S V College of Nursing
+                S V GROUP OF INSTITUTIONS
               </span>
-              <span className="eyebrow block text-[9px] text-teal-700">S V Group of Institutions</span>
             </span>
           </button>
 
