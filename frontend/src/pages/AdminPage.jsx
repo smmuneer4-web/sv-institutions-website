@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, Search, X, MessageCircle, Mail, Trash2, FileText, Download } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
+import { useLenisStop } from "@/lib/scroll";
 
 const STATUSES = ["submitted", "shortlist", "approved", "rejected"];
 
@@ -34,6 +35,7 @@ const Row = ({ label, value }) => (
 );
 
 function DetailModal({ app: a, onClose, onSaved, onDeleted }) {
+  useLenisStop(true);
   const [status, setStatus] = useState(a.status);
   const [notes, setNotes] = useState(a.admin_notes || "");
   const [saving, setSaving] = useState(false);
@@ -98,7 +100,7 @@ function DetailModal({ app: a, onClose, onSaved, onDeleted }) {
           </button>
         </div>
 
-        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+        <div data-lenis-prevent className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${STATUS_STYLE[a.status] || "bg-slate-100"}`}>{a.status}</span>
             <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-[#9F1239]">{a.programme}</span>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2, ArrowUpRight } from "lucide-react";
 import axios from "axios";
+import { useLenisStop } from "@/lib/scroll";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const COLLEGES = ["S V College of Nursing", "D R Vijayakumari School of Nursing"];
@@ -17,6 +18,7 @@ const EMPTY = {
 };
 
 export default function EnquiryModal({ open, onClose }) {
+  useLenisStop(open);
   const [form, setForm] = useState(EMPTY);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -104,7 +106,7 @@ export default function EnquiryModal({ open, onClose }) {
                 </button>
               </div>
             ) : (
-              <form onSubmit={submit} noValidate className="overflow-y-auto px-6 py-6">
+              <form onSubmit={submit} noValidate data-lenis-prevent className="overflow-y-auto px-6 py-6">
                 <div className="space-y-4">
                   <div>
                     <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Full Name *</label>

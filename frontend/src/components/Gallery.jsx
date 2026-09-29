@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Reveal, SectionHead } from "@/components/Reveal";
+import { useLenisStop } from "@/lib/scroll";
 
 const IMAGES = [
   {
@@ -44,6 +45,7 @@ const IMAGES = [
 
 export default function Gallery() {
   const [lightbox, setLightbox] = useState(null);
+  useLenisStop(!!lightbox);
 
   return (
     <section id="gallery" className="bg-gradient-to-b from-transparent via-rose-50/50 to-transparent py-24 lg:py-32">

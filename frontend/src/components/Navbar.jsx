@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Menu, X, ArrowUpRight } from "lucide-react";
-import { scrollToId } from "@/lib/scroll";
+import { scrollToId, useLenisStop } from "@/lib/scroll";
 
 const LINKS = [
   { label: "About", id: "#about" },
@@ -15,6 +15,7 @@ const LINKS = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  useLenisStop(open);
   const navigate = useNavigate();
   const go = (id) => {
     setOpen(false);
@@ -96,7 +97,7 @@ export default function Navbar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[70] flex flex-col bg-[#6E0A28] px-6 py-6 text-white"
+            data-lenis-prevent className="fixed inset-0 z-[70] flex flex-col bg-[#6E0A28] px-6 py-6 text-white"
           >
             <div className="flex items-center justify-between">
               <img src="/sv-logo.png" alt="S V logo" className="h-12 w-12 rounded-full bg-white object-cover" />

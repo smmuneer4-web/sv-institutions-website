@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BadgeCheck, FileText, X, Download } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
+import { useLenisStop } from "@/lib/scroll";
 
 const BODIES = [
   {
@@ -36,6 +37,7 @@ const BODIES = [
 export default function Affiliations() {
   const [viewer, setViewer] = useState(null);
   const [active, setActive] = useState(0);
+  useLenisStop(!!viewer);
 
   const open = (b) => {
     setActive(0);
@@ -124,7 +126,7 @@ export default function Affiliations() {
               exit={{ opacity: 0, scale: 0.92, y: 30 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+              data-lenis-prevent className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
             >
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rose-100 bg-[#6E0A28] px-6 py-4">
                 <p className="font-display text-xl font-semibold text-white">{viewer.title}</p>
