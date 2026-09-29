@@ -1,0 +1,266 @@
+{
+  "brand_identity": {
+    "institution_name": "S V College of Nursing",
+    "parent_group": "S V GROUP OF INSTITUTIONS",
+    "trust_name": "Sandesh Educational Cultural and Charitable Trust",
+    "motto": "A CULTURE OF EXCELLENCE IN LEARNING",
+    "logo_specifications": {
+      "type": "Custom Designed SVG Insignia",
+      "colors": {
+        "ring_primary": "#BE185D",
+        "ring_accent": "#E11D48",
+        "laurel_leaves": "#0D9488",
+        "nurse_icon": "#0F766E",
+        "ribbon_bg": "#9F1239",
+        "ribbon_text": "#FFFFFF"
+      },
+      "elements": [
+        "Pink/Crimson double ring container",
+        "Teal laurel leaves surrounding the inner circle",
+        "Nurse figure with medical cross in the core",
+        "Sweeping crimson ribbon banner at base with text: 'A CULTURE OF EXCELLENCE IN LEARNING'",
+        "Bold typography for 'S V GROUP OF INSTITUTIONS' and 'S V COLLEGE OF NURSING'"
+      ]
+    }
+  },
+  "color_palette": {
+    "primary_crimson": "#BE185D",
+    "primary_crimson_dark": "#9F1239",
+    "primary_crimson_light": "#FCE7F3",
+    "accent_teal": "#0D9488",
+    "accent_teal_dark": "#0F766E",
+    "accent_teal_light": "#CCFBF1",
+    "accent_teal_vibrant": "#14B8A6",
+    "background_main": "#FFFDF9",
+    "background_secondary": "#F8FAFC",
+    "surface_card": "#FFFFFF",
+    "text_main": "#0F172A",
+    "text_muted": "#475569",
+    "border_subtle": "#E2E8F0"
+  },
+  "typography": {
+    "fonts": {
+      "heading": "'Plus Jakarta Sans', sans-serif",
+      "display": "'Cormorant Garamond', serif",
+      "body": "'Plus Jakarta Sans', sans-serif",
+      "mono": "'JetBrains Mono', monospace"
+    },
+    "hierarchy": {
+      "hero_title": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight",
+      "section_title": "text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight",
+      "subsection_title": "text-xl sm:text-2xl font-semibold",
+      "card_title": "text-lg sm:text-xl font-bold",
+      "body_text": "text-base sm:text-lg leading-relaxed text-slate-700",
+      "caption": "text-xs sm:text-sm font-medium uppercase tracking-widest text-teal-700"
+    }
+  },
+  "layout_and_spacing": {
+    "container_padding": "px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto",
+    "section_spacing": "py-16 sm:py-24 lg:py-32",
+    "grid_gap": "gap-8 lg:gap-12",
+    "border_radius": "rounded-2xl"
+  },
+  "key_sections": [
+    {
+      "section_id": "header",
+      "name": "Navigation Bar",
+      "style": "Glassmorphism header (backdrop-blur-xl bg-white/80 border-b border-rose-100 z-50 sticky top-0)",
+      "components": [
+        "Interactive SVG Brand Logo with S V GROUP insignia",
+        "Navigation Links: Home, About, Colleges, Courses, Affiliations, Facilities, Contact",
+        "Primary CTA Button: 'Apply Now' with hover scale and crimson gradient",
+        "Mobile Navigation Drawer"
+      ]
+    },
+    {
+      "section_id": "hero",
+      "name": "Kinetic Hero Section",
+      "style": "High-impact split layout with warm ivory background and animated mesh grid",
+      "features": [
+        "Line-by-line reveal animation using Framer Motion",
+        "Badge overline: 'S V GROUP OF INSTITUTIONS • EST. 2002'",
+        "Main Headline: 'Empowering Healthcare Pioneers of Tomorrow'",
+        "Sub-headline: 'Premier Nursing Education in Bangalore affiliated to RGUHS, approved by INC & KSNC.'",
+        "Interactive 3D Glass Card showing Campus Stats (60 B.Sc Seats, 25 M.Sc Seats, 50 GNM Seats, 100% Clinical Placement)",
+        "Dual CTAs: 'Enquire for Admissions' and 'Explore Academic Programs'"
+      ]
+    },
+    {
+      "section_id": "marquee",
+      "name": "Slow Editorial Marquee",
+      "style": "Low-contrast, elegant drifting ribbon using React Fast Marquee",
+      "content": [
+        "A CULTURE OF EXCELLENCE IN LEARNING",
+        "AFFILIATED TO RAJIV GANDHI UNIVERSITY OF HEALTH SCIENCES (RGUHS)",
+        "RECOGNIZED BY INDIAN NURSING COUNCIL (INC)",
+        "APPROVED BY KARNATAKA STATE NURSING COUNCIL (KSNC)",
+        "HANDS-ON CLINICAL SIMULATION & MULTI-SPECIALTY HOSPITAL TIE-UPS"
+      ]
+    },
+    {
+      "section_id": "about",
+      "name": "About S V Group & College of Nursing",
+      "style": "Asymmetric Bento Grid showcasing heritage, vision, and core values",
+      "details": [
+        "Managed by Sandesh Educational Cultural and Charitable Trust",
+        "Dedicated to pure scientific knowledge and compassionate nursing ethics since 2002",
+        "Holistic clinical exposure with hands-on hospital rotations",
+        "State-of-the-art campus near Bangalore University"
+      ]
+    },
+    {
+      "section_id": "colleges",
+      "name": "Our Institutions List",
+      "style": "Two-column detailed feature cards",
+      "items": [
+        {
+          "college_name": "S V College of Nursing",
+          "tag": "Campus 2 • Degree & Master Programs",
+          "description": "Offers B.Sc Nursing (4 Years, 60 Seats) and M.Sc Nursing (2 Years, 25 Seats). Affiliated to RGUHS, approved by INC & KSNC.",
+          "badge": "Undergraduate & Postgraduate"
+        },
+        {
+          "college_name": "D R Vijayakumari School of Nursing",
+          "tag": "Campus 2 • Diploma Program",
+          "description": "Offers Diploma in General Nursing and Midwifery (DGNM/GNM, 3 Years, 50 Seats). Recognized by KSNC & INC.",
+          "badge": "Diploma in Nursing"
+        }
+      ]
+    },
+    {
+      "section_id": "courses",
+      "name": "Academic Programs & Seat Intake",
+      "style": "Interactive Tabbed & Card Matrix with seat count badges and key highlights",
+      "courses_list": [
+        {
+          "name": "B.Sc. Nursing",
+          "degree": "Undergraduate",
+          "duration": "4 Years",
+          "seats": "60 Seats",
+          "eligibility": "PUC / 10+2 with Physics, Chemistry & Biology (PCB)",
+          "college": "S V College of Nursing",
+          "highlights": ["Comprehensive Clinical Training", "Supervised Hospital Rotations", "Research & Public Health Ethics"]
+        },
+        {
+          "name": "M.Sc. Nursing",
+          "degree": "Postgraduate",
+          "duration": "2 Years",
+          "seats": "25 Seats",
+          "eligibility": "B.Sc Nursing with minimum 1 year clinical work experience",
+          "college": "S V College of Nursing",
+          "highlights": ["Advanced Nursing Specialties", "Leadership & Clinical Administration", "Thesis & Evidence-Based Research"]
+        },
+        {
+          "name": "DGNM / GNM Nursing",
+          "degree": "Diploma",
+          "duration": "3 Years",
+          "seats": "50 Seats",
+          "eligibility": "10+2 / PUC in any stream (Science/Arts/Commerce)",
+          "college": "D R Vijayakumari School of Nursing",
+          "highlights": ["Core Healthcare Team Competency", "Bedside Care & Midwifery Mastery", "Practical Bedside Rotations"]
+        }
+      ]
+    },
+    {
+      "section_id": "affiliations",
+      "name": "Affiliations & Recognitions",
+      "style": "Clean badge grid with official authorization details",
+      "items": [
+        {
+          "title": "RGUHS",
+          "full_name": "Rajiv Gandhi University of Health Sciences",
+          "type": "University Affiliation",
+          "location": "Karnataka, India"
+        },
+        {
+          "title": "KSNC",
+          "full_name": "Karnataka State Nursing Council",
+          "type": "State Statutory Body",
+          "location": "Bengaluru"
+        },
+        {
+          "title": "INC",
+          "full_name": "Indian Nursing Council",
+          "type": "Apex National Body",
+          "location": "New Delhi"
+        }
+      ]
+    },
+    {
+      "section_id": "facilities",
+      "name": "World-Class Infrastructure & Facilities",
+      "style": "3x2 Bento grid with high-resolution imagery and hover micro-interactions",
+      "facilities_list": [
+        {
+          "title": "Advanced Nursing Simulation Labs",
+          "description": "High-fidelity mannequins and clinical skill stations for real-world patient care practice."
+        },
+        {
+          "title": "Multi-Specialty Hospital Tie-ups",
+          "description": "Direct clinical postings in leading super-specialty hospitals across Bengaluru."
+        },
+        {
+          "title": "Digital Health Library & Research Hub",
+          "description": "Thousands of medical journals, e-books, and online databases for nursing research."
+        },
+        {
+          "title": "Anatomy & Physiology Laboratories",
+          "description": "Modern instruments, 3D anatomical models, and biochemical analysis stations."
+        },
+        {
+          "title": "Safe & Comfortable Campus Hostels",
+          "description": "Separate secure residential facilities for female and male students with 24/7 security."
+        },
+        {
+          "title": "Transportation & Location Advantage",
+          "description": "Conveniently located at Mallathahalli Bus Stop near Bangalore University Ring Road."
+        }
+      ]
+    },
+    {
+      "section_id": "apply_form",
+      "name": "Admission Enquiry & Apply Now Form",
+      "style": "Elevated card with form validation, submit loading state, and toast notification",
+      "form_fields": [
+        "Full Name",
+        "Phone Number",
+        "Email Address",
+        "Select College (S V College of Nursing / D R Vijayakumari School of Nursing)",
+        "Select Program (B.Sc Nursing / M.Sc Nursing / GNM Nursing)",
+        "State / City",
+        "Message / Specific Enquiry"
+      ]
+    },
+    {
+      "section_id": "contact",
+      "name": "Contact Details & Map Location",
+      "style": "Dark Crimson / Slate high-contrast footer with interactive contact cards",
+      "details": {
+        "address": "80 Feet Ring Road, Near Bangalore University, Mallathahalli Bus Stop, Bangalore - 560056",
+        "phone": "+91 90370 41972",
+        "email": "littleflowergroupbng@gmail.com",
+        "trust": "Sandesh Educational Cultural and Charitable Trust"
+      }
+    }
+  ],
+  "image_urls": {
+    "nurse_clinical": "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwxfHxmZW1hbGUlMjBudXJzZSUyMG1lZGljYWwlMjBob3NwaXRhbCUyMGNsaW5pY2FsJTIwZWR1Y2F0aW9ufGVufDB8fHx8MTc5MDcwNjUzNnww&ixlib=rb-4.1.0&q=85",
+    "female_doctor_pointing": "https://images.unsplash.com/photo-1673865641073-4479f93a7776?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwzfHxmZW1hbGUlMjBudXJzZSUyMG1lZGljYWwlMjBob3NwaXRhbCUyMGNsaW5pY2FsJTIwZWR1Y2F0aW9ufGVufDB8fHx8MTc5MDcwNjUzNnww&ixlib=rb-4.1.0&q=85",
+    "lab_scientist_microscope": "https://images.unsplash.com/photo-1766297246931-7b861269dab0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHwyfHxtZWRpY2FsJTIwc3R1ZGVudHMlMjBsYWJvcmF0b3J5fGVufDB8fHx8MTc5MDcwNjUzOXww&ixlib=rb-4.1.0&q=85",
+    "lab_scientist_flask": "https://images.unsplash.com/photo-1766297248047-6ec337099802?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHw0fHxtZWRpY2FsJTIwc3R1ZGVudHMlMjBsYWJvcmF0b3J5fGVufDB8fHx8MTc5MDcwNjUzOXww&ixlib=rb-4.1.0&q=85",
+    "lab_workstation": "https://images.unsplash.com/photo-1766297247924-6638d54e7c89?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHwxfHxtZWRpY2FsJTIwc3R1ZGVudHMlMjBsYWJvcmF0b3J5fGVufDB8fHx8MTc5MDcwNjUzOXww&ixlib=rb-4.1.0&q=85",
+    "modern_hospital_building": "https://images.unsplash.com/photo-1769147555720-71fc71bfc216?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2OTV8MHwxfHNlYXJjaHwxfHxob3NwaXRhbCUyMGJ1aWxkaW5nJTIwbW9kZXJufGVufDB8fHx8MTc5MDcwNjUzOXww&ixlib=rb-4.1.0&q=85",
+    "hospital_corridor": "https://images.unsplash.com/photo-1719934398679-d764c1410770?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2OTV8MHwxfHNlYXJjaHw0fHxob3NwaXRhbCUyMGJ1aWxkaW5nJTIwbW9kZXJufGVufDB8fHx8MTc5MDcwNjUzOXww&ixlib=rb-4.1.0&q=85"
+  },
+  "motion_and_effects": {
+    "smooth_scroll": "Lenis smooth scrolling engine enabled",
+    "framer_motion_reveals": "Staggered fade-up & scale-in for list and grid items",
+    "3d_hero_element": "Floating medical badge card with subtle parallax tilt on hover",
+    "line_reveal": "Masked line-by-line heading entry animation in hero section",
+    "marquee_speed": "Slow, organic speed (25s per loop) using react-fast-marquee"
+  },
+  "testing_and_accessibility": {
+    "test_id_attribute": "data-testid required on all interactive buttons, links, form inputs, and headers",
+    "contrast_standard": "APCA & WCAG AA compliant contrast ratio for rose/teal text over white surfaces"
+  }
+}

@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 60% 99%;
+    --foreground: 336 60% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 336 30% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 336 30% 12%;
+    --primary: 335 77% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 174 66% 32%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 40 33% 96%;
+    --muted-foreground: 220 9% 42%;
+    --accent: 174 66% 32%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 336 40% 91%;
+    --input: 336 40% 88%;
+    --ring: 335 77% 42%;
+    --radius: 1rem;
+
+    --crimson: #BE185D;
+    --crimson-dark: #9F1239;
+    --crimson-deep: #6E0A28;
+    --teal: #0D9488;
+    --teal-dark: #0F766E;
+    --ivory: #FFFDF9;
+    --ink: #22090F;
+  }
+  .dark {
+    --background: 336 60% 6%;
+    --foreground: 40 40% 98%;
+    --card: 336 40% 8%;
+    --card-foreground: 40 40% 98%;
+    --popover: 336 40% 8%;
+    --popover-foreground: 40 40% 98%;
+    --primary: 335 77% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 174 50% 30%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 336 20% 14%;
+    --muted-foreground: 336 10% 65%;
+    --accent: 174 50% 30%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 336 20% 18%;
+    --input: 336 20% 18%;
+    --ring: 335 77% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  ::selection {
+    background: var(--crimson);
+    color: #fff;
+  }
+  [data-debug-wrapper="true"] {
+    display: contents !important;
+  }
+  [data-debug-wrapper="true"] > * {
+    margin: inherit;
+    padding: inherit;
+    gap: inherit;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+  .hero-title {
+    font-size: clamp(2.6rem, 5.4vw, 5.6rem);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+  }
+  .section-title {
+    font-size: clamp(2rem, 3.6vw, 3.4rem);
+    line-height: 1.06;
+    letter-spacing: -0.02em;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.28em];
+  }
+  .grain::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+  .arch-frame {
+    border-radius: 999px 999px 28px 28px;
+  }
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee 42s linear infinite;
+  }
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
+  .spin-slow {
+    animation: spin-slow 22s linear infinite;
+  }
+  .glass-card {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(190, 24, 93, 0.12);
+    box-shadow: 0 24px 60px -24px rgba(110, 10, 40, 0.28);
+  }
+  .hairline {
+    border-color: rgba(190, 24, 93, 0.14);
+  }
+  .link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1.5px;
+    background-repeat: no-repeat;
+    background-position: left 100%;
+    transition: background-size 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .link-underline:hover {
+    background-size: 100% 1.5px;
+  }
+  .form-input {
+    @apply w-full rounded-xl border border-rose-100 bg-[#FFFDFB] px-4 py-3 text-sm text-[#22090F] placeholder:text-slate-400 outline-none transition-all duration-200;
+  }
+  .form-input:focus {
+    border-color: var(--crimson);
+    box-shadow: 0 0 0 4px rgba(190, 24, 93, 0.08);
+  }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.8); }
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
