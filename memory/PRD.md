@@ -24,13 +24,14 @@ Build a landing page for S V College of Nursing (https://littleflowerinstitution
 - Full landing page with all sections above, logo colours (#BE185D crimson, #0D9488 teal, ivory background), Cormorant Garamond display + Plus Jakarta Sans body.
 - Enquiry form working end-to-end: submitted test entries verified in MongoDB via GET /api/enquiries.
 - Approval certificate popups: RGUHS/KSNC/INC cards open a PDF viewer modal with the official uploaded letters (rguhs-svcon.pdf, inc-svcon.pdf, ksnc-svcon.pdf, ksnc-drvson.pdf; KSNC has college tabs).
-- Branding: navbar/footer wordmark "S V GROUP OF INSTITUTIONS"; contact +91 90378 34632 / admissions@svinstitutions.co.in.
-- Gallery section (Life @ S V): 6-tile bento (labs, hospital training, hostels, library) with hover zoom + lightbox, placed between Courses and Affiliations; nav link added.
-- Application portal (/apply): 6-step Student Application Form (Basic Info w/ optional photo upload resized client-side, College & Course, Communication & Guardian, Academic Record, Payment & Reference, Declaration & signature) with per-step validation, progress bar, and application number (SVN-YYYYMM-XXXX) on success.
-- Admin dashboard (/admin): JWT bcrypt-cookie auth (login/me/logout/refresh, 5-attempt lockout), stats cards, status filter pills + search, applications table, detail modal with full data, WhatsApp student/guardian + email actions, status & admin-notes editor, delete.
-- Verified: curl auth + applications CRUD (401 unauth, patch, delete), full UI flow submitted application SVN-202609-0BD5, dashboard status change to Approved reflected live, desktop + mobile screenshots (no overflow).
+- Branding: navbar/footer wordmark "S V GROUP OF INSTITUTIONS"; contact +91 90378 34632 / admissions@svinstitutions.co.in; tab title "S V INSTITUTIONS" + logo favicon.
+- Gallery section (Life @ S V): 6-tile bento with hover zoom + lightbox; nav link added.
+- Application portal (/apply): 6-step Student Application Form with per-step validation, progress bar, client-side photo resize, application numbers (SVN-YYYYMM-XXXX).
+- Admissions Console (/admin) modelled on the Little Flower reference console: topbar with session pill + sign out, Applications/Enquiries tabs, stat cards (Total/Today/Shortlisted/Approved), breakdown panels (status/college/programme bars), status+college filters, search, applications table, full detail modal (WhatsApp student/guardian, email, status editor, admin notes, delete). Enquiries tab lists quick enquiries with WhatsApp/email/delete actions. JWT bcrypt-cookie auth; enquiries list now admin-protected; DELETE /api/enquiries/{id} added.
+- Deployment: frontend on Vercel (react-scripts build; all @/ imports converted to relative; vercel.json SPA rewrites; .npmrc legacy-peer-deps; date-fns pinned v3; ajv v8 pinned). Backend on Render (uvicorn start command; requirements trimmed to public-PyPI packages; verify_password exception-safe + seed self-heals corrupt admin hashes).
+- Incident resolved: manually-added plain-text admin hash in Atlas caused login 500s + startup crash loop; data repaired and code hardened.
 
 ## Backlog / Next
 - P1: Email notification (Resend) to admissions on new application/enquiry.
 - P2: Document uploads (10th/12th marksheets) via object storage; PDF export of applications from dashboard.
-- P2: Photo gallery content replaced with real campus photos when provided.
+- P2: Real campus photos for gallery when provided.

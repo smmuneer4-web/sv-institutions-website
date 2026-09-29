@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Search, X, MessageCircle, Mail, Trash2, FileText, Download } from "lucide-react";
+import { LogOut, Search, X, MessageCircle, Mail, Trash2, RefreshCw, ExternalLink, ChevronRight } from "lucide-react";
 import { api, formatApiError } from "../lib/api";
 import { useLenisStop } from "../lib/scroll";
 
 const STATUSES = ["submitted", "shortlist", "approved", "rejected"];
+const COLLEGES = ["S V College of Nursing", "D R Vijayakumari School of Nursing"];
 
 const STATUS_STYLE = {
   submitted: "bg-slate-100 text-slate-600",
@@ -12,6 +13,7 @@ const STATUS_STYLE = {
   approved: "bg-emerald-50 text-emerald-700",
   rejected: "bg-rose-50 text-[#9F1239]",
 };
+const STATUS_LABEL = { submitted: "Submitted", shortlist: "Shortlisted", approved: "Approved", rejected: "Rejected" };
 
 const initials = (s) => (s || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const fmtDate = (iso) => {
@@ -21,10 +23,16 @@ const fmtDate = (iso) => {
     return iso || "—";
   }
 };
+const isToday = (iso) => {
+  try {
+    return new Date(iso).toDateString() === new Date().toDateString();
+  } catch {
+    return false;
+  }
+};
 const waLink = (phone) => {
   const d = (phone || "").split("").filter((c) => /\d/.test(c)).join("");
-  const n = d.length === 10 ? `91${d}` : d;
-  return `https://wa.me/${n}`;
+  return `https://wa.me/${d.length === 10 ? `91${d}` : d}`;
 };
 
 const Row = ({ label, value }) => (
@@ -197,12 +205,74 @@ function DetailModal({ app: a, onClose, onSaved, onDeleted }) {
   );
 }
 
+function EnquiryDeleteButton({ id, onDeleted }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      data-testid={`admin-enquiry-delete-button-${id}`}
+      disabled={busy}
+      onClick={async () => {
+        if (!window.confirm("Delete this enquiry? This cannot be undone.")) return;
+        setBusy(true);
+        try {
+          await api.delete(`/enquiries/${id}`);
+          onDeleted();
+        } finally {
+          setBusy(false);
+        }
+      }}
+      aria-label="Delete enquiry"
+      className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-[#9F1239] disabled:opacity-50"
+    >
+      <Trash2 className="h-4 w-4" />
+    </button>
+  );
+}
+
+const StatCard = ({ label, value, sub, testid }) => (
+  <div data-testid={testid} className="rounded-2xl border border-rose-100 bg-white p-6">
+    <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p>
+    <p className="mt-3 font-display text-5xl font-semibold leading-none text-[#22090F]">{value}</p>
+    <p className="mt-2 text-xs text-slate-400">{sub}</p>
+  </div>
+);
+
+const BreakdownPanel = ({ title, sub, rows, testid }) => {
+  const max = Math.max(1, ...rows.map((r) => r.count));
+  return (
+    <div data-testid={testid} className="rounded-2xl border border-rose-100 bg-white p-6">
+      <p className="text-sm font-bold text-[#22090F]">{title}</p>
+      <p className="mt-0.5 text-xs text-slate-400">{sub}</p>
+      <div className="mt-5 space-y-3.5">
+        {rows.map((r) => (
+          <div key={r.label}>
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-slate-500">{r.label}</span>
+              <span className="text-[#22090F]">{r.count}</span>
+            </div>
+            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-rose-50">
+              <div
+                className={`h-full rounded-full ${r.color || "bg-[#BE185D]"}`}
+                style={{ width: `${(r.count / max) * 100}%`, transition: "width .6s cubic-bezier(.16,1,.3,1)" }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function AdminPage() {
   const [user, setUser] = useState(null);
+  const [tab, setTab] = useState("applications");
   const [apps, setApps] = useState([]);
-  const [filter, setFilter] = useState("all");
+  const [enquiries, setEnquiries] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [collegeFilter, setCollegeFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -211,33 +281,43 @@ export default function AdminPage() {
       .catch(() => setUser(false));
   }, []);
 
-  const loadApps = () => {
+  const loadApps = () =>
     api.get("/applications")
       .then(({ data }) => setApps(data))
       .catch((e) => setError(formatApiError(e)));
+
+  const loadEnquiries = () =>
+    api.get("/enquiries")
+      .then(({ data }) => setEnquiries(data))
+      .catch((e) => setError(formatApiError(e)));
+
+  const refreshAll = () => {
+    setRefreshing(true);
+    setError("");
+    Promise.all([loadApps(), loadEnquiries()]).finally(() => setRefreshing(false));
   };
 
   useEffect(() => {
-    if (user) loadApps();
+    if (user) refreshAll();
   }, [user]);
 
   if (user === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FFFDF9]">
-        <p className="animate-pulse font-display text-2xl text-[#9F1239]">Loading dashboard…</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F5F2]">
+        <p className="animate-pulse font-display text-2xl text-[#9F1239]">Loading console…</p>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FFFDF9] px-5">
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F5F2] px-5">
         <div data-testid="admin-login-card" className="w-full max-w-md rounded-[2rem] border border-rose-100 bg-white p-9 shadow-xl shadow-rose-100/50">
           <div className="flex items-center gap-3">
             <img src="/sv-logo.png" alt="S V logo" className="h-12 w-12 rounded-full object-cover ring-1 ring-rose-100" />
             <div>
               <p className="font-display text-xl font-semibold text-[#22090F]">S V GROUP OF INSTITUTIONS</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-700">Admissions Dashboard</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-700">Admissions Console</p>
             </div>
           </div>
           <h1 className="mt-7 font-display text-3xl font-semibold text-[#22090F]">Admin Login</h1>
@@ -276,31 +356,48 @@ export default function AdminPage() {
     );
   }
 
-  const counts = {
-    all: apps.length,
-    submitted: apps.filter((a) => a.status === "submitted").length,
-    shortlist: apps.filter((a) => a.status === "shortlist").length,
-    approved: apps.filter((a) => a.status === "approved").length,
-    rejected: apps.filter((a) => a.status === "rejected").length,
-  };
+  const todayCount = apps.filter((a) => isToday(a.created_at)).length;
   const filtered = apps
-    .filter((a) => filter === "all" || a.status === filter)
+    .filter((a) => statusFilter === "all" || a.status === statusFilter)
+    .filter((a) => collegeFilter === "all" || a.college === collegeFilter)
     .filter((a) =>
       [a.full_name, a.mobile, a.application_number, a.programme].join(" ").toLowerCase().includes(search.toLowerCase())
     );
+  const filteredEnquiries = enquiries.filter((e) =>
+    [e.name, e.phone, e.email, e.program, e.city].join(" ").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const statusBreakdown = STATUSES.map((s) => ({
+    label: STATUS_LABEL[s],
+    count: apps.filter((a) => a.status === s).length,
+    color: s === "shortlist" ? "bg-[#0D9488]" : s === "approved" ? "bg-emerald-500" : s === "rejected" ? "bg-rose-400" : "bg-[#BE185D]",
+  }));
+  const collegeBreakdown = COLLEGES.map((c) => ({
+    label: c,
+    count: apps.filter((a) => a.college === c).length,
+    color: c === COLLEGES[0] ? "bg-[#BE185D]" : "bg-[#0D9488]",
+  }));
+  const programmeBreakdown = ["B.Sc. Nursing", "M.Sc. Nursing", "GNM (DGNM)"].map((p) => ({
+    label: p,
+    count: apps.filter((a) => a.programme === p).length,
+    color: "bg-[#9F1239]",
+  }));
 
   return (
     <div className="min-h-screen bg-[#F8F5F2]">
       <header className="border-b border-rose-100 bg-white px-5 py-4">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <img src="/sv-logo.png" alt="S V logo" className="h-11 w-11 rounded-full object-cover ring-1 ring-rose-100" />
+            <img src="/sv-logo.png" alt="S V logo" className="h-12 w-12 rounded-full object-cover ring-1 ring-rose-100" />
             <div>
-              <p className="font-display text-lg font-semibold leading-tight text-[#22090F]">S V GROUP OF INSTITUTIONS</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-700">Admissions Dashboard</p>
+              <p className="font-display text-xl font-semibold leading-tight text-[#22090F]">Admissions Console</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-700">S V Group of Institutions, Bengaluru</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <span className="hidden items-center gap-2 rounded-full bg-teal-50 px-4 py-2 text-xs font-bold text-[#0F766E] sm:inline-flex">
+              <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[#0D9488]" /> Admin session · {user.email}
+            </span>
             <a href="/" data-testid="admin-back-to-site-link" className="hidden text-xs font-bold text-slate-500 hover:text-[#BE185D] sm:inline">
               View Website
             </a>
@@ -312,114 +409,257 @@ export default function AdminPage() {
               }}
               className="inline-flex items-center gap-2 rounded-full border border-rose-200 px-5 py-2.5 text-xs font-bold text-[#9F1239] transition-colors hover:bg-rose-50"
             >
-              <LogOut className="h-3.5 w-3.5" /> Logout
+              <LogOut className="h-3.5 w-3.5" /> Sign out
             </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-5 py-8">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-          {[
-            { label: "Total", v: counts.all, testid: "stat-total" },
-            { label: "Submitted", v: counts.submitted, testid: "stat-submitted" },
-            { label: "Shortlisted", v: counts.shortlist, testid: "stat-shortlisted" },
-            { label: "Approved", v: counts.approved, testid: "stat-approved" },
-            { label: "Rejected", v: counts.rejected, testid: "stat-rejected" },
-          ].map((s) => (
-            <div key={s.label} data-testid={s.testid} className="rounded-2xl border border-rose-100 bg-white p-5">
-              <p className="font-display text-4xl font-semibold text-[#22090F]">{s.v}</p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {["all", ...STATUSES].map((s) => (
+      <main className="mx-auto max-w-7xl px-5 py-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-4xl font-semibold text-[#22090F]">
+              {tab === "applications" ? "Applications Overview" : "Enquiries"}
+            </h1>
+            <p className="mt-1.5 text-sm text-slate-500">
+              {tab === "applications"
+                ? "Manage admissions applications across all colleges."
+                : "Quick enquiries submitted from the website form."}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              data-testid="admin-refresh-button"
+              onClick={refreshAll}
+              className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:border-[#BE185D] hover:text-[#BE185D]"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+            </button>
+            {tab === "applications" && (
               <button
-                key={s}
-                data-testid={`admin-filter-${s}`}
-                onClick={() => setFilter(s)}
-                className={`rounded-full px-4 py-2 text-xs font-bold capitalize transition-all ${
-                  filter === s ? "bg-[#BE185D] text-white shadow-md shadow-rose-200" : "bg-white text-slate-500 ring-1 ring-rose-100 hover:text-[#BE185D]"
-                }`}
+                data-testid="admin-new-application-button"
+                onClick={() => window.open("/apply", "_blank")}
+                className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-200 transition-all hover:bg-[#9F1239]"
               >
-                {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+                New Application <ExternalLink className="h-3.5 w-3.5" />
               </button>
-            ))}
-          </div>
-          <div className="relative sm:w-72">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              data-testid="admin-search-input"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, mobile, application no..."
-              className="form-input pl-11"
-            />
+            )}
           </div>
         </div>
 
-        {error && <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-[#9F1239]">{error}</p>}
-
-        <div className="mt-6 overflow-hidden rounded-3xl border border-rose-100 bg-white">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-rose-100 bg-rose-50/40 text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
-                <th className="px-5 py-4">Applicant</th>
-                <th className="hidden px-5 py-4 md:table-cell">Programme</th>
-                <th className="hidden px-5 py-4 lg:table-cell">Mobile</th>
-                <th className="hidden px-5 py-4 sm:table-cell">Date</th>
-                <th className="px-5 py-4">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((a) => (
-                <tr
-                  key={a.id}
-                  data-testid={`admin-application-row-${a.application_number}`}
-                  onClick={() => setSelected(a)}
-                  className="cursor-pointer border-b border-rose-50 transition-colors last:border-0 hover:bg-rose-50/40"
-                >
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      {a.photo ? (
-                        <img src={a.photo} alt="" className="h-9 w-9 rounded-full object-cover" />
-                      ) : (
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-xs font-bold text-[#BE185D]">
-                          {initials(a.full_name)}
-                        </span>
-                      )}
-                      <div>
-                        <p className="font-semibold text-[#22090F]">{a.full_name}</p>
-                        <p className="text-xs text-slate-400">{a.application_number}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="hidden px-5 py-4 text-slate-600 md:table-cell">
-                    {a.programme}
-                    <span className="block text-xs text-slate-400">{a.college}</span>
-                  </td>
-                  <td className="hidden px-5 py-4 text-slate-600 lg:table-cell">{a.mobile}</td>
-                  <td className="hidden px-5 py-4 text-slate-600 sm:table-cell">{fmtDate(a.created_at)}</td>
-                  <td className="px-5 py-4">
-                    <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${STATUS_STYLE[a.status] || "bg-slate-100 text-slate-600"}`}>
-                      {a.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-5 py-14 text-center text-sm text-slate-400">
-                    No applications found. New applications from the portal will appear here.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="mt-6 flex gap-2">
+          <button
+            data-testid="admin-tab-applications"
+            onClick={() => setTab("applications")}
+            className={`rounded-full px-5 py-2.5 text-xs font-bold transition-all ${tab === "applications" ? "bg-[#BE185D] text-white shadow-md shadow-rose-200" : "bg-white text-slate-500 ring-1 ring-rose-100 hover:text-[#BE185D]"}`}
+          >
+            Applications ({apps.length})
+          </button>
+          <button
+            data-testid="admin-tab-enquiries"
+            onClick={() => setTab("enquiries")}
+            className={`rounded-full px-5 py-2.5 text-xs font-bold transition-all ${tab === "enquiries" ? "bg-[#BE185D] text-white shadow-md shadow-rose-200" : "bg-white text-slate-500 ring-1 ring-rose-100 hover:text-[#BE185D]"}`}
+          >
+            Enquiries ({enquiries.length})
+          </button>
         </div>
+
+        {tab === "applications" && (
+          <>
+            <div className="mt-7 grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <StatCard label="Total Applications" value={apps.length} sub="Across 2 colleges" testid="stat-total" />
+              <StatCard label="Today" value={todayCount} sub="Received today" testid="stat-today" />
+              <StatCard label="Shortlisted" value={statusBreakdown[1].count} sub="Pending action" testid="stat-shortlisted" />
+              <StatCard label="Approved" value={statusBreakdown[2].count} sub="Confirmed seats" testid="stat-approved" />
+            </div>
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              <BreakdownPanel title="Status Breakdown" sub="Applications by current status" rows={statusBreakdown} testid="panel-status-breakdown" />
+              <BreakdownPanel title="Applications by College" sub="Distribution across colleges" rows={collegeBreakdown} testid="panel-college-breakdown" />
+              <BreakdownPanel title="Programme Interest" sub="Choice of nursing programme" rows={programmeBreakdown} testid="panel-programme-breakdown" />
+            </div>
+
+            <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-wrap items-center gap-3">
+                <select data-testid="admin-status-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="form-input w-auto pr-8 text-sm font-semibold">
+                  <option value="all">All statuses</option>
+                  {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                </select>
+                <select data-testid="admin-college-filter" value={collegeFilter} onChange={(e) => setCollegeFilter(e.target.value)} className="form-input w-auto pr-8 text-sm font-semibold">
+                  <option value="all">All colleges</option>
+                  {COLLEGES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="relative lg:w-80">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  data-testid="admin-search-input"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search candidate, mobile, application no..."
+                  className="form-input pl-11"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 overflow-hidden rounded-3xl border border-rose-100 bg-white">
+              <div className="flex items-center justify-between border-b border-rose-100 px-6 py-4">
+                <p className="text-sm font-bold text-[#22090F]">Applications</p>
+                <p data-testid="admin-table-count" className="text-xs font-semibold text-slate-400">{filtered.length} of {apps.length}</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-rose-100 bg-rose-50/40 text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+                      <th className="px-6 py-4">Application ID</th>
+                      <th className="px-6 py-4">Candidate</th>
+                      <th className="px-6 py-4">Programme</th>
+                      <th className="px-6 py-4">Contact</th>
+                      <th className="px-6 py-4">Submitted</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((a) => (
+                      <tr
+                        key={a.id}
+                        data-testid={`admin-application-row-${a.application_number}`}
+                        onClick={() => setSelected(a)}
+                        className="cursor-pointer border-b border-rose-50 transition-colors last:border-0 hover:bg-rose-50/40"
+                      >
+                        <td className="px-6 py-4 font-mono text-xs font-semibold text-[#9F1239]">{a.application_number}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {a.photo ? (
+                              <img src={a.photo} alt="" className="h-9 w-9 rounded-full object-cover" />
+                            ) : (
+                              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-xs font-bold text-[#BE185D]">
+                                {initials(a.full_name)}
+                              </span>
+                            )}
+                            <span className="font-semibold text-[#22090F]">{a.full_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">
+                          {a.programme}
+                          <span className="block text-xs text-slate-400">{a.college}</span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">
+                          {a.mobile}
+                          <span className="block text-xs text-slate-400">{a.city}</span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">{fmtDate(a.created_at)}</td>
+                        <td className="px-6 py-4">
+                          <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${STATUS_STYLE[a.status] || "bg-slate-100 text-slate-600"}`}>
+                            {STATUS_LABEL[a.status] || a.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <ChevronRight className="ml-auto h-4 w-4 text-slate-300" />
+                        </td>
+                      </tr>
+                    ))}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-16 text-center text-sm text-slate-400">
+                          No applications yet.
+                          <span className="block">Applications will appear here as students apply.</span>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {tab === "enquiries" && (
+          <div className="mt-5 overflow-hidden rounded-3xl border border-rose-100 bg-white">
+            <div className="flex items-center justify-between border-b border-rose-100 px-6 py-4">
+              <p className="text-sm font-bold text-[#22090F]">Website Enquiries</p>
+              <p data-testid="admin-enquiry-count" className="text-xs font-semibold text-slate-400">{filteredEnquiries.length} of {enquiries.length}</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[820px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-rose-100 bg-rose-50/40 text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+                    <th className="px-6 py-4">Candidate</th>
+                    <th className="px-6 py-4">Contact</th>
+                    <th className="px-6 py-4">Interest</th>
+                    <th className="px-6 py-4">Message</th>
+                    <th className="px-6 py-4">Received</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEnquiries.map((e) => (
+                    <tr key={e.id} data-testid={`admin-enquiry-row-${e.id}`} className="border-b border-rose-50 transition-colors last:border-0 hover:bg-rose-50/30">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-50 text-xs font-bold text-[#0F766E]">
+                            {initials(e.name)}
+                          </span>
+                          <div>
+                            <p className="font-semibold text-[#22090F]">{e.name}</p>
+                            {e.city && <p className="text-xs text-slate-400">{e.city}</p>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                        {e.phone}
+                        <span className="block text-xs text-slate-400">{e.email}</span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                        {e.program}
+                        <span className="block text-xs text-slate-400">{e.college}</span>
+                      </td>
+                      <td className="max-w-[16rem] px-6 py-4 text-slate-600">
+                        <span className="line-clamp-2 text-xs">{e.message || "—"}</span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">{fmtDate(e.created_at)}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <a
+                            data-testid={`admin-enquiry-whatsapp-${e.id}`}
+                            href={waLink(e.phone)}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="WhatsApp"
+                            className="rounded-full p-2 text-emerald-600 transition-colors hover:bg-emerald-50"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </a>
+                          <a
+                            data-testid={`admin-enquiry-email-${e.id}`}
+                            href={`mailto:${e.email}`}
+                            aria-label="Email"
+                            className="rounded-full p-2 text-[#BE185D] transition-colors hover:bg-rose-50"
+                          >
+                            <Mail className="h-4 w-4" />
+                          </a>
+                          <EnquiryDeleteButton
+                            id={e.id}
+                            onDeleted={() => setEnquiries((list) => list.filter((x) => x.id !== e.id))}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredEnquiries.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">
+                        No enquiries yet.
+                        <span className="block">Enquiries from the website form will appear here.</span>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </main>
 
       <AnimatePresence>

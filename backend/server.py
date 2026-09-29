@@ -100,11 +100,6 @@ async def create_enquiry(input: EnquiryCreate):
     return enquiry
 
 
-@api_router.get("/enquiries", response_model=List[Enquiry])
-async def list_enquiries():
-    docs = await db.enquiries.find().sort("created_at", -1).to_list(1000)
-    return [Enquiry.from_mongo(d) for d in docs]
-
 
 # ---------------- Admin auth (JWT, httpOnly cookies) ----------------
 
@@ -250,6 +245,22 @@ async def seed_admin():
             {"$set": {"password_hash": hash_password(admin_password)}},
         )
         logger.info(f"Updated admin password hash for {admin_email}")
+
+
+
+
+@api_router.get("/enquiries", response_model=List[Enquiry])
+async def list_enquiries(user: dict = Depends(get_current_user)):
+    docs = await db.enquiries.find().sort("created_at", -1).to_list(1000)
+    return [Enquiry.from_mongo(d) for d in docs]
+
+
+@api_router.delete("/enquiries/{enquiry_id}")
+async def delete_enquiry(enquiry_id: str, user: dict = Depends(get_current_user)):
+    result = await db.enquiries.delete_one({"_id": enquiry_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Enquiry not found")
+    return {"message": "Enquiry deleted"}
 
 
 # ---------------- Applications (full admission application portal) ----------------
