@@ -4,7 +4,7 @@ import { X, Instagram, Heart, MessageCircle } from "lucide-react";
 import { Reveal, SectionHead } from "../components/Reveal";
 import { useLenisStop } from "../lib/scroll";
 
-const INSTAGRAM_HANDLE = "svinstitutions";
+const INSTAGRAM_HANDLE = "svgoiofficial";
 const INSTAGRAM_URL = `https://www.instagram.com/${INSTAGRAM_HANDLE}`;
 
 const IMAGES = [

@@ -1,8 +1,6 @@
-import { Building2, BookOpen, FlaskConical, BedDouble, Bus } from "lucide-react";
+import { Building2, BookOpen, FlaskConical, BedDouble, Bus, Stethoscope } from "lucide-react";
 import { Reveal, SectionHead } from "../components/Reveal";
 
-const LAB_IMG =
-  "https://images.unsplash.com/photo-1766297246931-7b861269dab0?q=80&w=1600&auto=format&fit=crop";
 const HOSTEL_IMG =
   "https://images.unsplash.com/photo-1769147555720-71fc71bfc216?q=80&w=1600&auto=format&fit=crop";
 
@@ -20,6 +18,23 @@ const ImageTile = ({ src, title, text, testid, className = "" }) => (
     <div className="absolute inset-0 bg-gradient-to-t from-[#22090F]/85 via-[#22090F]/25 to-transparent" />
     <div className="relative flex h-full flex-col justify-end p-8">
       <h3 className="font-display text-2xl font-semibold text-white">{title}</h3>
+      <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/75">{text}</p>
+    </div>
+  </div>
+);
+
+const BrandTile = ({ icon: Icon, title, text, testid, className = "" }) => (
+  <div
+    data-testid={testid}
+    className={`group relative flex flex-col justify-end overflow-hidden rounded-3xl bg-[#6E0A28] p-8 ${className}`}
+  >
+    <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-[#BE185D]/30 blur-3xl transition-all duration-700 group-hover:bg-[#BE185D]/50" />
+    <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(#fff_1px,transparent_1px)] [background-size:18px_18px]" />
+    <div className="relative">
+      <div className="inline-flex rounded-2xl bg-white/10 p-3.5 text-white ring-1 ring-white/25 backdrop-blur">
+        <Icon className="h-6 w-6" strokeWidth={1.8} />
+      </div>
+      <h3 className="mt-6 font-display text-2xl font-semibold text-white">{title}</h3>
       <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/75">{text}</p>
     </div>
   </div>
@@ -56,9 +71,9 @@ export default function Facilities() {
 
         <div className="mt-14 grid gap-6 lg:grid-cols-6">
           <Reveal className="lg:col-span-3 lg:row-span-2">
-            <ImageTile
+            <BrandTile
               testid="facility-tile-labs"
-              src={LAB_IMG}
+              icon={Stethoscope}
               title="Advanced Nursing Simulation Labs"
               text="High-fidelity mannequins and clinical skill stations for real-world patient care practice."
               className="h-96 lg:h-full lg:min-h-[30rem]"

@@ -135,11 +135,18 @@ export default function Hero() {
               style={{ rotateX: rotX, rotateY: rotY, transformStyle: "preserve-3d" }}
               className="arch-frame relative overflow-hidden border-[6px] border-white shadow-2xl shadow-rose-900/25"
             >
-              <img
-                src={HERO_IMG}
-                alt="Nursing student in clinical training"
+              <video
+                data-testid="hero-video"
+                poster={HERO_IMG}
+                autoPlay
+                muted
+                loop
+                playsInline
                 className="h-[30rem] w-full object-cover sm:h-[34rem]"
-              />
+              >
+                <source src="/hero.mp4" type="video/mp4" />
+                <source src="/hero.webm" type="video/webm" />
+              </video>
               <div className="absolute inset-0 bg-gradient-to-t from-[#6E0A28]/35 via-transparent to-transparent" />
             </motion.div>
 

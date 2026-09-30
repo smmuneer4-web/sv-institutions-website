@@ -44,6 +44,12 @@ Build a landing page for S V College of Nursing (https://littleflowerinstitution
 - Gallery rebuilt as an Instagram-style feed (per visual editor edit): profile strip (IG-gradient avatar ring, @svinstitutions handle, Follow button → instagram.com/svinstitutions — placeholder handle via INSTAGRAM_HANDLE const in Gallery.jsx), authentic 3-col square-tile grid with tight gutters, IG glyph per tile, hover overlay (heart/comment + caption), tap hint on mobile; lightbox kept
 - Section gaps normalized+tightened across landing (About, Colleges, Courses, Affiliations, Gallery): one scale py-20 lg:py-28 (was py-24 lg:py-32)
 
+## Implemented (2026-09-30, session 4 — visual edits round 2)
+- Instagram handle set to the real one: @svgoiofficial (INSTAGRAM_HANDLE const in Gallery.jsx; profile link https://www.instagram.com/svgoiofficial)
+- Facilities: big labs photo tile replaced with a maroon brand tile (Stethoscope icon, dot texture, glow) — photo removed per visual edit
+- Hero: arch-frame card is now a VIDEO hero — self-hosted looping clinic video (public/hero.mp4 3.6MB H.264 + public/hero.webm 780KB VP9 fallback, dual <source>, poster = previous hero image, autoplay muted loop playsinline). Hotlinked stock clips are referer-blocked, hence self-hosted; ships to Vercel with the repo. Verified playing (readyState 4) on desktop and loaded on mobile 390px
+- Pending note: embedding the LIVE Instagram feed (latest posts in-page) needs an Instagram access token from their business account — offered as next step
+
 ## Backlog / Next
 - P1: Email notification (Resend) to admissions on new application/enquiry.
 - P2: WhatsApp Business automation (user deferred) — auto-send reminders instead of manual link.
