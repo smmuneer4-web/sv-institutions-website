@@ -1,13 +1,14 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Upload, CheckCircle2, ShieldCheck, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Upload, CheckCircle2, ShieldCheck, X, Copy, Download, RotateCcw, Search, Phone, Mail, MapPin, Loader2 } from "lucide-react";
 import { api, formatApiError } from "../lib/api";
+import FileUpload from "../components/FileUpload";
+import { useColleges } from "../lib/colleges";
 
 const STEPS = ["Basic Info", "Course", "Communication", "Academic", "Payment & Reference", "Declaration"];
+const DRAFT_KEY = "sv_application_draft";
 
-const COLLEGES = ["S V College of Nursing", "D R Vijayakumari School of Nursing"];
-const PROGRAMMES = ["B.Sc. Nursing", "M.Sc. Nursing", "GNM (DGNM)"];
 const PAYMENT_MODES = ["UPI", "Bank Transfer", "Cash", "Cheque", "Card", "Other"];
 const REFERRALS = ["Google / Search", "Instagram", "Friend / Relative", "Newspaper", "Campus Visit", "Other"];
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -21,9 +22,12 @@ const INITIAL = {
   guardian_name: "", guardian_mobile: "", guardian_email: "", guardian_occupation: "", emergency_name: "", emergency_mobile: "",
   b10_board: "", b10_year: "", b10_pct: "", b10_school: "",
   b12_board: "", b12_year: "", b12_stream: "", b12_pct: "", b12_school: "", other_qualification: "",
+  marksheet10: "", marksheet12: "",
   payment_mode: "", payment_reference: "", payment_receiver: "", referral_source: "", payment_remarks: "",
   agree_accurate: false, agree_communication: false, signature: "",
 };
+
+const TRACK_STEPS = ["submitted", "shortlist", "approved"];
 
 const Field = ({ label, required, children }) => (
   <div>
@@ -34,13 +38,134 @@ const Field = ({ label, required, children }) => (
   </div>
 );
 
+function TrackPanel() {
+  const [open, setOpen] = useState(false);
+  const [number, setNumber] = useState("");
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const search = () => {
+    const n = number.trim().toUpperCase();
+    if (!n) return setError("Please enter your application number.");
+    setBusy(true);
+    setError("");
+    setResult(null);
+    api.get(`/applications/track/${encodeURIComponent(n)}`)
+      .then(({ data }) => setResult(data))
+      .catch((e) => setError(e.response?.status === 404 ? "No application found with that number. Please check and try again." : formatApiError(e)))
+      .finally(() => setBusy(false));
+  };
+
+  const statusIndex = result ? TRACK_STEPS.indexOf(result.status) : -1;
+  const stepLabel = { submitted: "Application received", shortlist: "Shortlisted for admission", approved: "Admission approved — welcome!" };
+
+  return (
+    <div data-testid="track-panel" className="mt-6 rounded-3xl border border-teal-100 bg-teal-50/40 p-6">
+      <button data-testid="track-toggle-button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between gap-3 text-left">
+        <span className="flex items-center gap-2.5 text-sm font-bold text-[#0F766E]">
+          <Search className="h-4 w-4" /> Already applied? Track your application
+        </span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#0D9488]">{open ? "Hide" : "Open"}</span>
+      </button>
+      {open && (
+        <div className="mt-4">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              data-testid="track-number-input"
+              className="form-input flex-1 font-mono"
+              placeholder="e.g. SVN-202601-AB12"
+              value={number}
+              onChange={(e) => setNumber(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && search()}
+            />
+            <button data-testid="track-search-button" onClick={search} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0F766E] px-6 py-3 text-xs font-bold text-white transition-colors hover:bg-[#0D9488] disabled:opacity-60">
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />} Track status
+            </button>
+          </div>
+          {error && <p data-testid="track-error" className="mt-3 rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-medium text-[#9F1239]">{error}</p>}
+          {result && (
+            <div data-testid="track-result" className="mt-4 rounded-2xl border border-teal-100 bg-white p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-mono text-xs font-bold text-[#9F1239]">{result.application_number}</p>
+                  <p className="mt-0.5 font-display text-xl font-semibold text-[#22090F]">{result.full_name}</p>
+                  <p className="text-xs text-slate-500">{result.programme} · {result.college}</p>
+                </div>
+                <a
+                  data-testid="track-copy-download"
+                  href={`${process.env.REACT_APP_BACKEND_URL}/api/applications/copy/${encodeURIComponent(result.application_number)}.pdf`}
+                  className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-white px-4 py-2 text-xs font-bold text-[#0F766E] transition-colors hover:bg-teal-50"
+                >
+                  <Download className="h-3.5 w-3.5" /> Download copy
+                </a>
+              </div>
+              <div className="mt-5">
+                {result.status === "rejected" ? (
+                  <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-[#9F1239]">
+                    This application was not approved. Please contact the admissions office for details.
+                  </p>
+                ) : (
+                  <div className="flex items-center">
+                    {TRACK_STEPS.map((s, i) => (
+                      <div key={s} className={`flex ${i < TRACK_STEPS.length - 1 ? "flex-1" : ""} items-center`}>
+                        <div className="flex flex-col items-center">
+                          <span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${i <= statusIndex ? "bg-[#0D9488] text-white" : "bg-rose-50 text-slate-400"}`}>
+                            {i <= statusIndex ? <Check className="h-4 w-4" /> : i + 1}
+                          </span>
+                          <span className="mt-1.5 max-w-[90px] text-center text-[10px] font-semibold text-slate-500">{stepLabel[s]}</span>
+                        </div>
+                        {i < TRACK_STEPS.length - 1 && <div className={`mx-2 h-0.5 flex-1 rounded ${i < statusIndex ? "bg-[#0D9488]" : "bg-rose-100"}`} />}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ApplyPage() {
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState(INITIAL);
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { ...INITIAL, ...(parsed.form || {}) };
+      }
+    } catch { /* corrupt draft — start fresh */ }
+    return INITIAL;
+  });
+  const [draftRestored, setDraftRestored] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [result, setResult] = useState(null);
   const fileRef = useRef(null);
+  const { colleges } = useColleges();
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.step) setStep(Math.min(5, Number(parsed.step) || 0));
+      }
+    } catch { /* ignore */ }
+    setDraftRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftRestored || result) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, step }));
+    } catch { /* storage full — ignore */ }
+  }, [form, step, draftRestored, result]);
 
   const set = (k) => (e) => {
     const v = e && e.target ? e.target.value : e;
@@ -48,6 +173,9 @@ export default function ApplyPage() {
   };
 
   const digits = (s) => (s || "").split("").filter((c) => /\d/.test(c)).length;
+
+  const activeCollege = colleges.find((c) => c.name === form.college);
+  const programmeOptions = activeCollege ? activeCollege.courses.map((c) => c.name) : [];
 
   const validate = () => {
     const s = form;
@@ -124,6 +252,7 @@ export default function ApplyPage() {
     try {
       const { data } = await api.post("/applications", form);
       setResult(data);
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       window.scrollTo(0, 0);
     } catch (e) {
       setError(formatApiError(e));
@@ -132,10 +261,27 @@ export default function ApplyPage() {
     }
   };
 
+  const startNew = () => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    setForm(INITIAL);
+    setStep(0);
+    setResult(null);
+    setCopied(false);
+    window.scrollTo(0, 0);
+  };
+
+  const copyId = async () => {
+    try {
+      await navigator.clipboard.writeText(result.application_number);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch { /* clipboard unavailable */ }
+  };
+
   if (result) {
     return (
       <div className="min-h-screen bg-[#FFFDF9] px-5 py-16">
-        <div data-testid="application-success-panel" className="mx-auto mt-10 max-w-xl rounded-[2rem] border border-rose-100 bg-white p-10 text-center shadow-xl shadow-rose-100/60">
+        <div data-testid="application-success-panel" className="mx-auto mt-10 max-w-2xl rounded-[2rem] border border-rose-100 bg-white p-10 text-center shadow-xl shadow-rose-100/60">
           <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-teal-50">
             <CheckCircle2 className="h-10 w-10 text-[#0D9488]" />
           </span>
@@ -146,17 +292,76 @@ export default function ApplyPage() {
           </p>
           <div className="mt-7 rounded-2xl bg-rose-50 px-6 py-5">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#9F1239]">Application Number</p>
-            <p data-testid="application-number" className="mt-1 font-display text-3xl font-semibold text-[#BE185D]">
-              {result.application_number}
-            </p>
+            <div className="mt-1 flex items-center justify-center gap-3">
+              <p data-testid="application-number" className="font-display text-3xl font-semibold text-[#BE185D]">
+                {result.application_number}
+              </p>
+              <button data-testid="application-copy-id-button" onClick={copyId} aria-label="Copy application number" className="rounded-full border border-rose-200 bg-white p-2 text-slate-500 transition-colors hover:border-[#BE185D] hover:text-[#BE185D]">
+                {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+              </button>
+            </div>
             <p className="mt-2 text-xs text-slate-500">Save this reference for all future communication.</p>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-rose-100 p-6 text-left">
+            <p className="font-display text-lg font-semibold text-[#22090F]">What happens next?</p>
+            <ol className="mt-3 space-y-2.5">
+              {[
+                "You will receive a confirmation email with your application details shortly.",
+                "Our admissions team will review your application and share the next steps within 3–5 working days.",
+                "Selected candidates will be invited for a personal interaction / counselling session at the campus.",
+                "Complete document verification and fee payment to secure your seat.",
+              ].map((s, i) => (
+                <li key={i} className="flex gap-3 text-[13px] leading-relaxed text-slate-600">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-50 text-[11px] font-bold text-[#BE185D]">{i + 1}</span>
+                  {s}
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="mt-5 grid gap-3 text-left sm:grid-cols-3">
+            <a href="tel:+919037834632" data-testid="success-call-link" className="flex items-center gap-2.5 rounded-xl border border-rose-100 p-3 transition-colors hover:border-[#BE185D]/40">
+              <Phone className="h-4 w-4 shrink-0 text-[#BE185D]" />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Call</p>
+                <p className="text-xs font-semibold text-[#22090F]">+91 90378 34632</p>
+              </div>
+            </a>
+            <a href="mailto:admissions@svinstitutions.co.in" className="flex items-center gap-2.5 rounded-xl border border-rose-100 p-3 transition-colors hover:border-[#BE185D]/40">
+              <Mail className="h-4 w-4 shrink-0 text-[#BE185D]" />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Email</p>
+                <p className="truncate text-xs font-semibold text-[#22090F]">admissions@svinstitutions.co.in</p>
+              </div>
+            </a>
+            <div className="flex items-center gap-2.5 rounded-xl border border-rose-100 p-3">
+              <MapPin className="h-4 w-4 shrink-0 text-[#BE185D]" />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Visit</p>
+                <p className="text-xs font-semibold text-[#22090F]">Mallathahalli, Bengaluru</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <a
+              data-testid="application-download-copy-button"
+              href={`${process.env.REACT_APP_BACKEND_URL}/api/applications/copy/${encodeURIComponent(result.application_number)}.pdf`}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-[#BE185D] px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-[#9F1239]"
+            >
+              <Download className="h-4 w-4" /> Download PDF Copy
+            </a>
+            <button data-testid="application-start-new-button" onClick={startNew} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-rose-200 bg-white px-6 py-3 text-sm font-bold text-slate-600 transition-colors hover:border-[#BE185D] hover:text-[#BE185D]">
+              <RotateCcw className="h-4 w-4" /> Start New Application
+            </button>
           </div>
           <Link
             to="/"
             data-testid="application-success-home-link"
-            className="mt-8 inline-flex items-center rounded-full bg-[#BE185D] px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-[#9F1239]"
+            className="mt-4 inline-flex items-center text-xs font-bold text-slate-400 transition-colors hover:text-[#BE185D]"
           >
-            Back to Website
+            ← Back to Website
           </Link>
         </div>
       </div>
@@ -189,6 +394,8 @@ export default function ApplyPage() {
         <p className="mt-3 text-base text-slate-600">
           S V Group of Institutions · six quick steps · about 5 minutes
         </p>
+
+        <TrackPanel />
 
         <div className="mt-8 flex items-center">
           {STEPS.map((label, i) => (
@@ -252,7 +459,7 @@ export default function ApplyPage() {
                     <Field label="Nationality">
                       <input data-testid="app-nationality-input" className="form-input" value={form.nationality} onChange={set("nationality")} />
                     </Field>
-                    <Field label="Religion / Caste">
+                    <Field label="Religion">
                       <input data-testid="app-religion-input" className="form-input" value={form.religion} onChange={set("religion")} placeholder="Optional" />
                     </Field>
                     <Field label="Caste / Category">
@@ -292,25 +499,31 @@ export default function ApplyPage() {
                   <div className="mt-7 space-y-5">
                     <Field label="College" required>
                       <div className="grid gap-3 sm:grid-cols-2">
-                        {COLLEGES.map((c) => (
+                        {colleges.filter((c) => c.active !== false).map((c) => (
                           <button
-                            key={c}
-                            data-testid={`app-college-option-${c === COLLEGES[0] ? "svcon" : "drv"}`}
-                            onClick={() => set("college")(c)}
+                            key={c.id}
+                            data-testid={`app-college-option-${c.id}`}
+                            onClick={() => setForm((f) => ({ ...f, college: c.name, programme: "" }))}
                             className={`rounded-2xl border-2 px-5 py-4 text-left text-sm font-semibold transition-all ${
-                              form.college === c ? "border-[#BE185D] bg-rose-50/60 text-[#22090F]" : "border-rose-100 text-slate-500 hover:border-rose-200"
+                              form.college === c.name ? "border-[#BE185D] bg-rose-50/60 text-[#22090F]" : "border-rose-100 text-slate-500 hover:border-rose-200"
                             }`}
                           >
-                            {c}
+                            {c.name}
+                            {c.campus && <span className="mt-0.5 block text-[11px] font-normal text-slate-400">{c.campus}</span>}
                           </button>
                         ))}
                       </div>
                     </Field>
                     <Field label="Programme / Course" required>
                       <select data-testid="app-programme-select" className="form-input" value={form.programme} onChange={set("programme")}>
-                        <option value="">Select programme</option>
-                        {PROGRAMMES.map((p) => <option key={p}>{p}</option>)}
+                        <option value="">{activeCollege ? "Select programme" : "Select a college first"}</option>
+                        {programmeOptions.map((p) => <option key={p}>{p}</option>)}
                       </select>
+                      {activeCollege && (
+                        <p className="mt-2 text-[11px] text-slate-400">
+                          {activeCollege.courses.map((c) => `${c.name} · ${c.duration}`).join(" · ")}
+                        </p>
+                      )}
                     </Field>
                     <div className="grid gap-5 sm:grid-cols-2">
                       <Field label="Hostel Required">
@@ -393,6 +606,9 @@ export default function ApplyPage() {
                     <Field label="Percentage / CGPA" required><input data-testid="app-10-pct-input" className="form-input" value={form.b10_pct} onChange={set("b10_pct")} /></Field>
                     <Field label="School Name" required><input data-testid="app-10-school-input" className="form-input" value={form.b10_school} onChange={set("b10_school")} /></Field>
                   </div>
+                  <div className="mt-5">
+                    <FileUpload label="10th Marksheet / SSLC (optional)" testid="app-marksheet10-upload" value={form.marksheet10} onChange={set("marksheet10")} />
+                  </div>
                   <p className="mt-8 text-xs font-bold uppercase tracking-[0.12em] text-[#BE185D]">12th / PUC / Equivalent</p>
                   <div className="mt-3 grid gap-5 sm:grid-cols-2">
                     <Field label="Board" required><input data-testid="app-12-board-input" className="form-input" value={form.b12_board} onChange={set("b12_board")} /></Field>
@@ -407,6 +623,9 @@ export default function ApplyPage() {
                         <textarea data-testid="app-other-qualification-input" rows={2} className="form-input resize-none" value={form.other_qualification} onChange={set("other_qualification")} />
                       </Field>
                     </div>
+                  </div>
+                  <div className="mt-5">
+                    <FileUpload label="12th Marksheet / PUC (optional)" testid="app-marksheet12-upload" value={form.marksheet12} onChange={set("marksheet12")} />
                   </div>
                 </>
               )}
@@ -499,7 +718,7 @@ export default function ApplyPage() {
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
             ) : (
-              <p className="text-xs text-slate-400 sm:max-w-xs">Your details are private and will only be reviewed by the admissions team.</p>
+              <p className="text-xs text-slate-400 sm:max-w-xs">Your progress is saved automatically on this device.</p>
             )}
             {step < 5 ? (
               <button data-testid="app-continue-button" onClick={next} className="group inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-rose-900/20 transition-all hover:bg-[#9F1239]">

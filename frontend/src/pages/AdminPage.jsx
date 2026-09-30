@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, Search, X, MessageCircle, Mail, Trash2, RefreshCw, ExternalLink, ChevronRight, Check, AlertTriangle } from "lucide-react";
 import { api, formatApiError, saveAuth, clearAuth } from "../lib/api";
 import { inr, collected, overdueFor, overdueTotal } from "../lib/admin";
+import { StatusDonut, CollegeBar, RevenueArea } from "../components/DashboardCharts";
 import { useLenisStop } from "../lib/scroll";
 
 const STATUSES = ["submitted", "shortlist", "approved", "rejected"];
@@ -284,32 +285,6 @@ const StatCard = ({ label, value, sub, testid }) => (
   </div>
 );
 
-const BreakdownPanel = ({ title, sub, rows, testid }) => {
-  const max = Math.max(1, ...rows.map((r) => r.count));
-  return (
-    <div data-testid={testid} className="rounded-2xl border border-rose-100 bg-white p-6">
-      <p className="text-sm font-bold text-[#22090F]">{title}</p>
-      <p className="mt-0.5 text-xs text-slate-400">{sub}</p>
-      <div className="mt-5 space-y-3.5">
-        {rows.map((r) => (
-          <div key={r.label}>
-            <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-slate-500">{r.label}</span>
-              <span className="text-[#22090F]">{r.count}</span>
-            </div>
-            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-rose-50">
-              <div
-                className={`h-full rounded-full ${r.color || "bg-[#BE185D]"}`}
-                style={{ width: `${(r.count / max) * 100}%`, transition: "width .6s cubic-bezier(.16,1,.3,1)" }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 export default function AdminPage() {
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState("applications");
@@ -321,6 +296,7 @@ export default function AdminPage() {
   const [selected, setSelected] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     api.get("/auth/me")
@@ -338,10 +314,15 @@ export default function AdminPage() {
       .then(({ data }) => setEnquiries(data))
       .catch((e) => setError(formatApiError(e)));
 
+  const loadStats = () =>
+    api.get("/admin/stats")
+      .then(({ data }) => setStats(data))
+      .catch(() => setStats(null));
+
   const refreshAll = () => {
     setRefreshing(true);
     setError("");
-    Promise.all([loadApps(), loadEnquiries()]).finally(() => setRefreshing(false));
+    Promise.all([loadApps(), loadEnquiries(), loadStats()]).finally(() => setRefreshing(false));
   };
 
   useEffect(() => {
@@ -419,16 +400,6 @@ export default function AdminPage() {
     label: STATUS_LABEL[s],
     count: apps.filter((a) => a.status === s).length,
     color: s === "shortlist" ? "bg-[#0D9488]" : s === "approved" ? "bg-emerald-500" : s === "rejected" ? "bg-rose-400" : "bg-[#BE185D]",
-  }));
-  const collegeBreakdown = COLLEGES.map((c) => ({
-    label: c,
-    count: apps.filter((a) => a.college === c).length,
-    color: c === COLLEGES[0] ? "bg-[#BE185D]" : "bg-[#0D9488]",
-  }));
-  const programmeBreakdown = ["B.Sc. Nursing", "M.Sc. Nursing", "GNM (DGNM)"].map((p) => ({
-    label: p,
-    count: apps.filter((a) => a.programme === p).length,
-    color: "bg-[#9F1239]",
   }));
   const overdueStudents = apps.map((a) => ({ app: a, rows: overdueFor(a) })).filter((x) => x.rows.length > 0);
   const overdueAmount = overdueStudents.reduce((s, x) => s + x.rows.reduce((t, r) => t + r.outstanding, 0), 0);
@@ -542,10 +513,12 @@ export default function AdminPage() {
               </div>
             )}
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
-              <BreakdownPanel title="Status Breakdown" sub="Applications by current status" rows={statusBreakdown} testid="panel-status-breakdown" />
-              <BreakdownPanel title="Applications by College" sub="Distribution across colleges" rows={collegeBreakdown} testid="panel-college-breakdown" />
-              <BreakdownPanel title="Programme Interest" sub="Choice of nursing programme" rows={programmeBreakdown} testid="panel-programme-breakdown" />
+            <div className="mt-6">
+              <RevenueArea data={stats?.byMonth || []} appsByMonth={stats?.appsByMonth || []} />
+            </div>
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <StatusDonut data={stats?.byStatus || {}} />
+              <CollegeBar data={stats?.byCollege || []} />
             </div>
 
             <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

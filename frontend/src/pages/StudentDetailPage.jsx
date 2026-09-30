@@ -2,13 +2,16 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, BellRing, FileDown, Pencil, Trash2, Plus, X, Check,
+  ArrowLeft, BellRing, FileDown, FileText, Pencil, Trash2, Plus, X, Check,
   Building2, GraduationCap, Phone, Mail, AlertTriangle, IndianRupee, CalendarDays, Wallet,
 } from "lucide-react";
 import { api, formatApiError } from "../lib/api";
-import { useAdminAuth, Topbar, STATUS_STYLE, STATUS_LABEL, initials, fmtDate, inr, collected, waLink, overdueFor, overdueTotal } from "../lib/admin";
+import { useAdminAuth, Topbar, STATUS_STYLE, STATUS_LABEL, initials, fmtDate, inr, collected, overdueFor, overdueTotal } from "../lib/admin";
+import ReminderDialog from "../components/ReminderDialog";
+import ApplicationEditorModal from "../components/ApplicationEditorModal";
 
 const METHODS = ["UPI", "Bank Transfer", "Cash", "Cheque", "Card", "Other"];
+const FEE_TYPES = ["Application Fees", "Admission Fees", "Tuition Fees", "Uniform Fees", "Other Fees"];
 const YEARS = ["year1", "year2", "year3", "year4"];
 
 const Row = ({ label, value }) => (
@@ -38,14 +41,17 @@ export default function StudentDetailPage() {
 
   const [planEdit, setPlanEdit] = useState(false);
   const [planYears, setPlanYears] = useState({ year1: "", year2: "", year3: "", year4: "" });
+  const [planScholarship, setPlanScholarship] = useState("");
   const [profileEdit, setProfileEdit] = useState(false);
   const [profile, setProfile] = useState({ full_name: "", mobile: "", email: "" });
   const [status, setStatus] = useState("");
   const [notes, setNotes] = useState("");
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const emptySchedule = { label: "", amount: "", due_date: "", remarks: "" };
   const [scheduleForm, setScheduleForm] = useState(null);
-  const emptyPayment = { amount: "", schedule_id: "", method: "UPI", remarks: "" };
+  const emptyPayment = { amount: "", schedule_id: "", method: "UPI", remarks: "", date: "", fee_type: "Tuition Fees", receiver: "" };
   const [paymentForm, setPaymentForm] = useState(null);
 
   useEffect(() => {
@@ -92,16 +98,6 @@ export default function StudentDetailPage() {
   const overdueRows = overdueFor(app);
   const overdueOutstanding = overdueTotal(app);
 
-  const reminderText = encodeURIComponent(
-    `Dear Parent, this is a fee reminder from S V Group of Institutions for ${app.full_name} (${app.application_number}). ` +
-    (overdueRows.length
-      ? `${overdueRows.length} installment(s) are overdue — outstanding on overdue schedules: ${inr(overdueOutstanding)}. `
-      : `Outstanding balance: ${inr(balance)}. `) +
-    "Kindly clear the dues at the earliest. - Admissions Office"
-  );
-  const reminderTarget = app.guardian_mobile || app.mobile;
-  const reminderHref = reminderTarget ? `${waLink(reminderTarget)}?text=${reminderText}` : null;
-
   const run = (fn) => {
     setBusy(true);
     setError("");
@@ -123,7 +119,7 @@ export default function StudentDetailPage() {
         year3: Number(planYears.year3 || 0),
         year4: Number(planYears.year4 || 0),
       };
-      const { data } = await api.patch(`/applications/${app.id}/fee-years`, { fee_years });
+      const { data } = await api.patch(`/applications/${app.id}/fee-years`, { fee_years, scholarship_amount: Number(planScholarship || 0) });
       setApp(data);
       setPlanEdit(false);
     });
@@ -158,7 +154,7 @@ export default function StudentDetailPage() {
 
   const submitPayment = () =>
     run(async () => {
-      const payload = { amount: Number(paymentForm.amount), schedule_id: paymentForm.schedule_id, method: paymentForm.method, remarks: paymentForm.remarks };
+      const payload = { amount: Number(paymentForm.amount), schedule_id: paymentForm.schedule_id, method: paymentForm.method, remarks: paymentForm.remarks, date: paymentForm.date, fee_type: paymentForm.fee_type, receiver: paymentForm.receiver };
       const { data } = paymentForm.mode === "add"
         ? await api.post(`/applications/${app.id}/payments`, payload)
         : await api.patch(`/applications/${app.id}/payments/${paymentForm.id}`, payload);
@@ -176,6 +172,27 @@ export default function StudentDetailPage() {
       const link = document.createElement("a");
       link.href = url;
       link.download = m ? m[1] : `Receipt-${p.receipt_no || p.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(formatApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const downloadApplicationPdf = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api.get(`/applications/${app.id}/application.pdf`, { responseType: "blob" });
+      const m = (res.headers["content-disposition"] || "").match(/filename="?([^"]+)"?/);
+      const url = URL.createObjectURL(res.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = m ? m[1] : `Application-${app.application_number}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -218,12 +235,16 @@ export default function StudentDetailPage() {
             <Link to="/admin/students" data-testid="student-detail-back-link" className={btn}>
               <ArrowLeft className="h-3.5 w-3.5" /> All students
             </Link>
-            {reminderHref && (
-              <a data-testid="student-send-reminder-link" href={reminderHref} target="_blank" rel="noreferrer"
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all ${overdueRows.length ? "bg-[#BE185D] text-white shadow-md shadow-rose-200 hover:bg-[#9F1239]" : "border border-rose-200 bg-white text-slate-600 hover:border-[#BE185D] hover:text-[#BE185D]"}`}>
-                <BellRing className="h-3.5 w-3.5" /> Send Reminder{overdueRows.length ? ` (${overdueRows.length})` : ""}
-              </a>
-            )}
+            <button data-testid="student-send-reminder-link" onClick={() => setReminderOpen(true)}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all ${overdueRows.length ? "bg-[#BE185D] text-white shadow-md shadow-rose-200 hover:bg-[#9F1239]" : "border border-rose-200 bg-white text-slate-600 hover:border-[#BE185D] hover:text-[#BE185D]"}`}>
+              <BellRing className="h-3.5 w-3.5" /> Send Reminder{overdueRows.length ? ` (${overdueRows.length})` : ""}
+            </button>
+            <button data-testid="student-application-pdf-button" onClick={downloadApplicationPdf} disabled={busy} className={btn}>
+              <FileText className="h-3.5 w-3.5" /> Application PDF
+            </button>
+            <button data-testid="student-full-editor-button" onClick={() => setEditorOpen(true)} className={btn}>
+              <Pencil className="h-3.5 w-3.5" /> Full Editor
+            </button>
           </div>
         </div>
 
@@ -237,12 +258,10 @@ export default function StudentDetailPage() {
                 <p className="text-xs text-slate-500">Outstanding on overdue schedules: {inr(overdueOutstanding)}</p>
               </div>
             </div>
-            {reminderHref && (
-              <a data-testid="overdue-send-reminder-button" href={reminderHref} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-200 transition-all hover:bg-[#9F1239]">
-                <BellRing className="h-3.5 w-3.5" /> Send Reminder
-              </a>
-            )}
+            <button data-testid="overdue-send-reminder-button" onClick={() => setReminderOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-200 transition-all hover:bg-[#9F1239]">
+              <BellRing className="h-3.5 w-3.5" /> Send Reminder
+            </button>
           </motion.div>
         )}
 
@@ -307,6 +326,22 @@ export default function StudentDetailPage() {
               <p className="mt-1.5 text-sm font-bold text-[#22090F]">{fmtDate(app.created_at)}</p>
             </div>
           </div>
+
+          {(app.marksheet10 || app.marksheet12) && (
+            <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-rose-50 pt-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Documents</p>
+              {app.marksheet10 && (
+                <a data-testid="student-marksheet10-link" href={app.marksheet10} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-white px-4 py-1.5 text-[11px] font-bold text-slate-600 transition-colors hover:border-[#BE185D] hover:text-[#BE185D]">
+                  <FileText className="h-3.5 w-3.5 text-[#BE185D]" /> 10th Marksheet
+                </a>
+              )}
+              {app.marksheet12 && (
+                <a data-testid="student-marksheet12-link" href={app.marksheet12} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-white px-4 py-1.5 text-[11px] font-bold text-slate-600 transition-colors hover:border-[#BE185D] hover:text-[#BE185D]">
+                  <FileText className="h-3.5 w-3.5 text-[#BE185D]" /> 12th Marksheet
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -327,7 +362,7 @@ export default function StudentDetailPage() {
 
         <div className="mt-5 rounded-3xl border border-rose-100 bg-white p-6">
           <CardHead icon={IndianRupee} title="Fee Plan">
-            <button data-testid="student-plan-edit-button" onClick={() => { setPlanEdit(!planEdit); setPlanYears({ year1: app.fee_years?.year1 ?? "", year2: app.fee_years?.year2 ?? "", year3: app.fee_years?.year3 ?? "", year4: app.fee_years?.year4 ?? "" }); }}
+            <button data-testid="student-plan-edit-button" onClick={() => { setPlanEdit(!planEdit); setPlanYears({ year1: app.fee_years?.year1 ?? "", year2: app.fee_years?.year2 ?? "", year3: app.fee_years?.year3 ?? "", year4: app.fee_years?.year4 ?? "" }); setPlanScholarship(app.scholarship_amount ? String(app.scholarship_amount) : ""); }}
               className="no-print inline-flex items-center gap-2 rounded-full border border-rose-200 px-4 py-2 text-xs font-bold text-slate-600 transition-all hover:border-[#BE185D] hover:text-[#BE185D]">
               <Pencil className="h-3.5 w-3.5" /> {planEdit ? "Close" : "Edit"}
             </button>
@@ -345,11 +380,26 @@ export default function StudentDetailPage() {
               </div>
             ))}
           </div>
-          {planEdit && (
-            <div className="mt-4 flex gap-2">
-              <button data-testid="student-plan-save-button" onClick={savePlan} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-5 py-2.5 text-xs font-bold text-white disabled:opacity-60"><Check className="h-3.5 w-3.5" /> Save Fee Plan</button>
-              <button data-testid="student-plan-cancel-button" onClick={() => setPlanEdit(false)} className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-500"><X className="h-3.5 w-3.5" /> Cancel</button>
+          {planEdit ? (
+            <div className="mt-4 grid gap-4 rounded-2xl bg-rose-50/50 p-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Scholarship / Concession (₹)</label>
+                <input data-testid="student-plan-scholarship-input" inputMode="numeric" className="form-input py-2 text-right text-sm font-bold" placeholder="0"
+                  value={planScholarship} onChange={(e) => setPlanScholarship(e.target.value.replace(/[^0-9]/g, ""))} />
+                <p className="mt-1 text-[11px] text-slate-400">Deducted from the total plan. Planned = Σ years − scholarship.</p>
+              </div>
+              <div className="flex items-end gap-2">
+                <button data-testid="student-plan-save-button" onClick={savePlan} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-5 py-2.5 text-xs font-bold text-white disabled:opacity-60"><Check className="h-3.5 w-3.5" /> Save Fee Plan</button>
+                <button data-testid="student-plan-cancel-button" onClick={() => setPlanEdit(false)} className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-500"><X className="h-3.5 w-3.5" /> Cancel</button>
+              </div>
             </div>
+          ) : (
+            app.scholarship_amount > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1 rounded-2xl bg-teal-50/60 px-4 py-3 text-xs font-semibold text-[#0F766E]">
+                <span>Scholarship: − {inr(app.scholarship_amount)}</span>
+                <span>Net planned fees: {inr(planned)}</span>
+              </div>
+            )
           )}
         </div>
 
@@ -421,7 +471,7 @@ export default function StudentDetailPage() {
 
         <div className="mt-5 rounded-3xl border border-rose-100 bg-white p-6">
           <CardHead icon={Wallet} title="Payments Collected">
-            <button data-testid="student-log-payment-button" onClick={() => setPaymentForm(paymentForm ? null : { mode: "add", id: null, ...emptyPayment, schedule_id: schedules[0]?.id || "" })}
+            <button data-testid="student-log-payment-button" onClick={() => setPaymentForm(paymentForm ? null : { mode: "add", id: null, ...emptyPayment, schedule_id: schedules[0]?.id || "", date: new Date().toISOString().slice(0, 10) })}
               className="no-print inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-4 py-2 text-xs font-bold text-white transition-all hover:bg-[#9F1239]">
               <Plus className="h-3.5 w-3.5" /> Log Payment
             </button>
@@ -430,7 +480,7 @@ export default function StudentDetailPage() {
           <AnimatePresence>
             {paymentForm && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <div className="mt-4 grid gap-3 rounded-2xl bg-rose-50/50 p-4 sm:grid-cols-4">
+                <div className="mt-4 grid gap-3 rounded-2xl bg-rose-50/50 p-4 sm:grid-cols-3">
                   <input data-testid="student-payment-form-amount-input" className="form-input" inputMode="numeric" placeholder="Amount ₹" value={paymentForm.amount} onChange={(e) => setPaymentForm((f) => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, "") }))} />
                   <select data-testid="student-payment-form-schedule-select" className="form-input" value={paymentForm.schedule_id} onChange={(e) => setPaymentForm((f) => ({ ...f, schedule_id: e.target.value }))}>
                     <option value="">No schedule (general)</option>
@@ -439,8 +489,14 @@ export default function StudentDetailPage() {
                   <select data-testid="student-payment-form-method-select" className="form-input" value={paymentForm.method} onChange={(e) => setPaymentForm((f) => ({ ...f, method: e.target.value }))}>
                     {METHODS.map((m) => <option key={m}>{m}</option>)}
                   </select>
-                  <input data-testid="student-payment-form-remarks-input" className="form-input" placeholder="Remarks / receipt no." value={paymentForm.remarks} onChange={(e) => setPaymentForm((f) => ({ ...f, remarks: e.target.value }))} />
-                  <div className="flex gap-2 sm:col-span-4">
+                  <input data-testid="student-payment-form-date-input" className="form-input" type="date" value={paymentForm.date} onChange={(e) => setPaymentForm((f) => ({ ...f, date: e.target.value }))} />
+                  <select data-testid="student-payment-form-fee-type-select" className="form-input" value={paymentForm.fee_type} onChange={(e) => setPaymentForm((f) => ({ ...f, fee_type: e.target.value }))}>
+                    <option value="">Fee type (auto)</option>
+                    {FEE_TYPES.map((ft) => <option key={ft}>{ft}</option>)}
+                  </select>
+                  <input data-testid="student-payment-form-receiver-input" className="form-input" placeholder="Received by (name)" value={paymentForm.receiver} onChange={(e) => setPaymentForm((f) => ({ ...f, receiver: e.target.value }))} />
+                  <input data-testid="student-payment-form-remarks-input" className="form-input sm:col-span-3" placeholder="Remarks / UTR / reference" value={paymentForm.remarks} onChange={(e) => setPaymentForm((f) => ({ ...f, remarks: e.target.value }))} />
+                  <div className="flex gap-2 sm:col-span-3">
                     <button data-testid="student-payment-form-save-button" onClick={submitPayment} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-5 py-2 text-xs font-bold text-white disabled:opacity-60"><Check className="h-3.5 w-3.5" /> {paymentForm.mode === "add" ? "Log Payment" : "Save Changes"}</button>
                     <button data-testid="student-payment-form-cancel-button" onClick={() => setPaymentForm(null)} className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-5 py-2 text-xs font-bold text-slate-500"><X className="h-3.5 w-3.5" /> Cancel</button>
                   </div>
@@ -466,18 +522,19 @@ export default function StudentDetailPage() {
                   const sc = schedules.find((x) => x.id === p.schedule_id);
                   return (
                     <tr key={p.id || p.created_at} data-testid={`student-payment-row-${p.id || p.created_at}`} className="border-b border-rose-50 align-top last:border-0">
-                      <td className="py-3.5 pr-4 text-slate-600">{fmtDate(p.created_at)}</td>
+                      <td className="py-3.5 pr-4 text-slate-600">{fmtDate(p.date || p.created_at)}</td>
                       <td className="px-4 py-3.5">
                         <p className="font-semibold text-[#22090F]">{sc ? sc.label : "General"}</p>
                         {p.receipt_no && <p data-testid={`payment-receipt-no-${p.id || p.created_at}`} className="font-mono text-[10px] font-semibold text-[#BE185D]">{p.receipt_no}</p>}
+                        {p.fee_type && <p className="text-xs text-slate-400">{p.fee_type}</p>}
                         {p.remarks && <p className="text-xs text-slate-400">{p.remarks}</p>}
                       </td>
-                      <td className="px-4 py-3.5 text-slate-600">{p.method || "—"}</td>
+                      <td className="px-4 py-3.5 text-slate-600">{p.method || "—"}{p.receiver ? <span className="block text-xs text-slate-400">{p.receiver}</span> : null}</td>
                       <td className="px-4 py-3.5 font-semibold text-emerald-700">{inr(p.amount)}</td>
                       <td className="px-4 py-3.5 text-slate-500">{p.reference || "—"}</td>
                       <td className="px-4 py-3.5 text-right no-print">
                         <button data-testid={`student-payment-receipt-${p.id || p.created_at}`} aria-label="Download receipt" disabled={busy} onClick={() => downloadReceipt(p)} title="Download receipt PDF" className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-emerald-700"><FileDown className="h-4 w-4" /></button>
-                        <button data-testid={`student-payment-edit-${p.id || p.created_at}`} aria-label="Edit payment" onClick={() => setPaymentForm({ mode: "edit", id: p.id, amount: String(p.amount), schedule_id: p.schedule_id || "", method: p.method || "UPI", remarks: p.remarks || "" })} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-[#BE185D]"><Pencil className="h-4 w-4" /></button>
+                        <button data-testid={`student-payment-edit-${p.id || p.created_at}`} aria-label="Edit payment" onClick={() => setPaymentForm({ mode: "edit", id: p.id, amount: String(p.amount), schedule_id: p.schedule_id || "", method: p.method || "UPI", remarks: p.remarks || "", date: p.date || (p.created_at || "").slice(0, 10), fee_type: p.fee_type || "", receiver: p.receiver || "" })} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-[#BE185D]"><Pencil className="h-4 w-4" /></button>
                         <button data-testid={`student-payment-delete-${p.id || p.created_at}`} aria-label="Delete payment" onClick={() => window.confirm("Remove this payment record?") && removePayment(p.id || p.created_at)} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-[#9F1239]"><Trash2 className="h-4 w-4" /></button>
                       </td>
                     </tr>
@@ -526,6 +583,27 @@ export default function StudentDetailPage() {
           </div>
         </div>
       </main>
+
+      {reminderOpen && (
+        <ReminderDialog
+          open={reminderOpen}
+          onClose={() => setReminderOpen(false)}
+          student={{ ...app, balance }}
+          overdueItems={overdueRows}
+        />
+      )}
+      {editorOpen && (
+        <ApplicationEditorModal
+          app={app}
+          onClose={() => setEditorOpen(false)}
+          onSaved={(data) => {
+            setApp(data);
+            setStatus(data.status);
+            setNotes(data.admin_notes || "");
+            setEditorOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

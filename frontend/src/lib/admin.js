@@ -94,6 +94,7 @@ export function Topbar({ user, active = "", children }) {
         <div className="flex items-center gap-2">
           {link("/admin", "Overview", "overview")}
           {link("/admin/students", "Students & Fees", "students")}
+          {link("/admin/colleges", "Colleges & Courses", "colleges")}
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden items-center gap-2 rounded-full bg-teal-50 px-4 py-2 text-xs font-bold text-[#0F766E] sm:inline-flex">

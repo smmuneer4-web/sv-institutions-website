@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { RefreshCw, ChevronRight, Search, AlertTriangle } from "lucide-react";
+import { RefreshCw, ChevronRight, Search, AlertTriangle, Upload } from "lucide-react";
 import { useAdminAuth, useApplications, Topbar, COLLEGES, STATUS_STYLE, STATUS_LABEL, initials, inr, collected, overdueFor, overdueTotal } from "../lib/admin";
+import BulkImportDialog from "../components/BulkImportDialog";
+import { useColleges } from "../lib/colleges";
 
 const TRACKED = ["shortlist", "approved"];
 
@@ -10,6 +12,8 @@ export default function StudentsPage() {
   const { apps, load, error } = useApplications(user);
   const [collegeFilter, setCollegeFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
+  const { colleges } = useColleges();
 
   if (user === null) {
     return (
@@ -49,14 +53,30 @@ export default function StudentsPage() {
             <h1 className="font-display text-4xl font-semibold text-[#22090F]">Students &amp; Fee Collection</h1>
             <p className="mt-1.5 text-sm text-slate-500">Manage enrolled students, fee plans and payment collections.</p>
           </div>
-          <button
-            data-testid="students-refresh-button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:border-[#BE185D] hover:text-[#BE185D]"
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              data-testid="students-bulk-import-button"
+              onClick={() => setImportOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:border-[#BE185D] hover:text-[#BE185D]"
+            >
+              <Upload className="h-3.5 w-3.5" /> Bulk Import
+            </button>
+            <button
+              data-testid="students-refresh-button"
+              onClick={load}
+              className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:border-[#BE185D] hover:text-[#BE185D]"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </button>
+          </div>
         </div>
+
+        <BulkImportDialog
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          colleges={colleges}
+          onImported={load}
+        />
 
         <div className="mt-7 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {stat("Total Students", tracked.length, "Currently tracked", "students-stat-total")}
