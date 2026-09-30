@@ -135,16 +135,16 @@ const InstagramTab = ({ content }) => {
         <p className="flex items-center gap-2 text-sm font-bold text-[#0F766E]"><Info className="h-4 w-4" /> How to get your access token</p>
         <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[12.5px] leading-relaxed text-slate-600">
           <li>Set your Instagram account to <b>Business / Creator</b> (Instagram → Settings → Account type).</li>
-          <li>Go to <b>developers.facebook.com → My Apps → Create App</b> (type "Business"), add the <b>Instagram</b> product and log in with the account that owns @svgoiofficial.</li>
-          <li>Open <b>Graph API Explorer</b> (Tools → Graph API Explorer), pick your app, add the <b>instagram_basic</b> permission, click <b>Generate Access Token</b>.</li>
-          <li>Paste the token below. If you also enter your <b>App ID + App Secret</b>, the site extends it to a 60-day long-lived token automatically.</li>
+          <li>Go to <b>developers.facebook.com → My Apps → Create App</b> and add the <b>Instagram → API setup with Instagram Login</b> product.</li>
+          <li>Easy path: in the app's <b>API setup</b> page, click <b>"Generate token"</b> for @svgoiofficial — that token is already long-lived (60 days). Paste it below and connect.</li>
+          <li>Alternate path: generate a 1-hour token in <b>Graph API Explorer</b> (permission <b>instagram_business_basic</b>), then also paste your <b>App Secret</b> (App settings → Basic) — the site exchanges it to a 60-day token automatically.</li>
         </ol>
       </div>
 
       <div className="grid gap-4 rounded-2xl border border-rose-100 bg-white p-6 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Label>Access Token *</Label>
-          <input data-testid="instagram-token-input" type="password" className={inputCls} placeholder="EAAG..." value={token} onChange={(e) => setToken(e.target.value)} />
+          <input data-testid="instagram-token-input" type="password" className={inputCls} placeholder="IGQVJ..." value={token} onChange={(e) => setToken(e.target.value)} />
         </div>
         <div>
           <Label>Instagram Username</Label>
@@ -152,12 +152,12 @@ const InstagramTab = ({ content }) => {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>App ID (optional)</Label>
-            <input data-testid="instagram-appid-input" className={inputCls} value={appId} onChange={(e) => setAppId(e.target.value)} />
-          </div>
-          <div>
             <Label>App Secret (optional)</Label>
             <input data-testid="instagram-secret-input" type="password" className={inputCls} value={appSecret} onChange={(e) => setAppSecret(e.target.value)} />
+          </div>
+          <div>
+            <Label>App ID (Facebook tokens only)</Label>
+            <input data-testid="instagram-appid-input" className={inputCls} value={appId} onChange={(e) => setAppId(e.target.value)} />
           </div>
         </div>
         <div className="flex items-center gap-2 sm:col-span-2">

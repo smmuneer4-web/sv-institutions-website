@@ -57,6 +57,12 @@ Build a landing page for S V College of Nursing (https://littleflowerinstitution
 - Testing: backend 36/36 (new test_content_media_instagram.py); UI suite found one CRITICAL (landing crash: DEFAULT_CONTENT.hero lacked video_url/poster_url → Hero.jsx undefined.endsWith) — fixed (defaults seeded + .filter(Boolean)) and re-verified live: no error boundary, video playing, 6 tiles, footer phone from CMS
 - Note: server.py ~1900 lines — refactor into routers flagged as future cleanup
 
+## Implemented (2026-09-30, session 6 — Instagram Login token flow)
+- Added the Instagram User token exchange per Meta docs (user pasted /access_token spec): POST /api/admin/instagram with App Secret only → graph.instagram.com/access_token?grant_type=ig_exchange_token (1-hour → 60-day); App ID + Secret → Facebook exchange (fb_exchange_token); exchange failure falls back to the pasted token
+- Feed fetch fallback chain: graph.instagram.com/me business_discovery → /me user_id + discovery on numeric IG id → graph.facebook.com/me/accounts page-linked discovery
+- Instagram tab instructions rewritten for the Instagram Login flow (API setup with Instagram Login → Generate token = already long-lived; or Graph API Explorer + App Secret auto-exchange); labels clarify App Secret (Instagram apps) vs App ID (Facebook tokens)
+- Verified: garbage token → clean 502 JSON with guidance (preview proxy WAF may wrap it in HTML — production Render unaffected); token never leaks via public endpoints
+
 ## Backlog / Next
 - P1: Email notification (Resend) to admissions on new application/enquiry.
 - P2: WhatsApp Business automation (user deferred) — auto-send reminders instead of manual link.

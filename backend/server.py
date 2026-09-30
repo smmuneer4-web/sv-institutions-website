@@ -1562,6 +1562,15 @@ def _sync_fetch_instagram(token: str, username: str) -> list:
     r = _ig_graph_get("https://graph.instagram.com/me", {"fields": fields, "access_token": token})
     if r.status_code == 200:
         return _parse_ig_media(r.json())
+    # Route 1b: Instagram Login token — resolve the numeric IG user id, then discover on it
+    r_id = _ig_graph_get("https://graph.instagram.com/me", {"fields": "user_id,username", "access_token": token})
+    if r_id.status_code == 200 and (r_id.json() or {}).get("user_id"):
+        r1b = _ig_graph_get(
+            f"https://graph.instagram.com/{r_id.json()['user_id']}",
+            {"fields": fields, "access_token": token},
+        )
+        if r1b.status_code == 200:
+            return _parse_ig_media(r1b.json())
     # Route 2: Facebook Login token — find the connected IG business account, then discover
     r2 = _ig_graph_get("https://graph.facebook.com/v21.0/me/accounts", {"fields": "id,name,instagram_business_account{id,username}", "access_token": token})
     if r2.status_code == 200:
@@ -1594,14 +1603,27 @@ def _exchange_to_long_lived(token: str, app_id: str, app_secret: str) -> str:
     return token  # fall back to the pasted token if the exchange is rejected
 
 
+def _exchange_ig_token(token: str, app_secret: str) -> str:
+    """Instagram Login flow: 1-hour token -> 60-day token via ig_exchange_token (needs only the app secret)."""
+    r = _ig_graph_get(
+        "https://graph.instagram.com/access_token",
+        {"grant_type": "ig_exchange_token", "client_secret": app_secret, "access_token": token},
+    )
+    if r.status_code == 200 and r.json().get("access_token"):
+        return r.json()["access_token"]
+    return token  # fall back to the pasted token if the exchange is rejected
+
+
 @api_router.post("/admin/instagram")
 async def connect_instagram(input: InstagramSettings, user: dict = Depends(get_current_user)):
     username = input.username.strip().lstrip("@")
     if not input.token.strip():
         raise HTTPException(status_code=422, detail="Access token is required")
     token = input.token.strip()
-    if input.app_id.strip() and input.app_secret.strip():
+    if input.app_secret.strip() and input.app_id.strip():
         token = _exchange_to_long_lived(token, input.app_id.strip(), input.app_secret.strip())
+    elif input.app_secret.strip():
+        token = _exchange_ig_token(token, input.app_secret.strip())
     import asyncio
     loop = asyncio.get_event_loop()
     try:
