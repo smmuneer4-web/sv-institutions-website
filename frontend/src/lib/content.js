@@ -17,6 +17,8 @@ export const DEFAULT_CONTENT = {
     poster_media_id: null,
     poster_fallback: "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?q=80&w=1600&auto=format&fit=crop",
     video_fallback: "/hero.mp4",
+    video_url: "/hero.mp4",
+    poster_url: "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?q=80&w=1600&auto=format&fit=crop",
     stats: [
       { n: "135", l: "Sanctioned Seats" },
       { n: "03", l: "Nursing Programs" },

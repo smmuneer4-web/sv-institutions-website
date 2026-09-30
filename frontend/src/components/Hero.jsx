@@ -134,7 +134,7 @@ export default function Hero() {
                 playsInline
                 className="h-[30rem] w-full object-cover sm:h-[34rem]"
               >
-                {[...new Set([hero.video_url, "/hero.mp4", "/hero.webm"])].map((src) => (
+                {[...new Set([hero.video_url, "/hero.mp4", "/hero.webm"])].filter(Boolean).map((src) => (
                   <source key={src} src={src} type={src.endsWith(".webm") ? "video/webm" : "video/mp4"} />
                 ))}
               </video>

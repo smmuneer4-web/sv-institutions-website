@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 3 tested the two new features: Admin Site Content Manager (CMS + media library + Range) and Instagram Live Feed integration. Backend: 16/16 new pytest tests pass (36/36 including regression from iterations 1-2) — GET /api/content returns defaults merged with DB overlay; PUT /api/admin/content requires auth (401 without token) and rejects empty payload (422); phone edit persists and reverts; POST /api/admin/media enforces auth (401) and 9 MB cap (422); GET /api/media/{id} serves full body with Accept-Ranges: bytes and returns 206 + Content-Range 'bytes 0-9/{len}' on 'Range: bytes=0-9'; DELETE /api/admin/media/{id} removes doc and subsequent GET → 404; hero video_media_id round-trips to /api/media/{id} in the merged content response and resets to /hero.mp4 when cleared; POST /api/admin/instagram with garbage token → 502; POST /api/admin/instagram + DELETE /api/admin/instagram require auth (401); public GET /api/instagram/posts NEVER contains the token string or a 'token' key; DELETE /api/admin/instagram clears the settings; receipt PDF regression: A5 landscape 595.3×419.5, still contains 'S V GROUP OF INSTITUTIONS' + 'Receipt No.: SVR-'. Frontend: /admin/content redirects to /admin when unauth (verified). After login, the 5 tabs (content-tab-details/hero/gallery/facilities/instagram) all render. Details tab: phone edited to '+91 99999 00000' → content-saved-alert shown → GET /api/content confirms → revert works. Admin gallery lists 6 photos. Instagram tab surfaces instagram-error on garbage token (Cloudflare 502 wrapped message shown to user). Facilities tab renders upload widget. /apply page renders. Mobile 390 landing has 0 px horizontal overflow. HOWEVER — CRITICAL FRONTEND BUG: the landing page `/` throws a React runtime error in Hero.jsx that trips the ErrorBoundary and shows 'Something went wrong. Please refresh.' — the entire homepage is broken until fixed. Root cause: Hero.jsx line 138 does `src.endsWith('.webm')` inside `[...new Set([hero.video_url, '/hero.mp4', '/hero.webm'])].map(...)`. On first render before /api/content returns, `useContent` yields DEFAULT_CONTENT (from /app/frontend/src/lib/content.js) which has NO `video_url` field (only video_media_id/video_fallback). `hero.video_url` is therefore `undefined`, gets included in the Set, and `undefined.endsWith` blows up. Because the error is thrown during the initial synchronous render, the ErrorBoundary keeps the fallback UI. Consequence: for every visitor loading the site (even after the CMS/media backend was added), the landing page is entirely broken. Tests observed 'landing has new phone: False', 'total_imgs: 0', 'hero video: found=False' — matching the boundary state.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Hero.jsx (line 138)",
+        "issue": "Landing page crashes with 'TypeError: Cannot read properties of undefined (reading endsWith)' inside <Hero>. Rendering `[...new Set([hero.video_url, '/hero.mp4', '/hero.webm'])].map(src => src.endsWith('.webm') ...)` fails because DEFAULT_CONTENT.hero has no `video_url` key (only `video_media_id: null` + `video_fallback: '/hero.mp4'`). The Set contains undefined, and undefined.endsWith throws. React ErrorBoundary renders 'Something went wrong. Please refresh.' for every user until content fetch resolves — and on the very first paint that hasn't happened yet, so the entire homepage is broken. Two-line fix: EITHER (a) in /app/frontend/src/lib/content.js DEFAULT_CONTENT.hero add `video_url: '/hero.mp4', poster_url: <poster_fallback>` so useContent's initial state has the field, OR (b) in Hero.jsx line 137-138 filter falsy values: `[...new Set([hero.video_url, '/hero.mp4', '/hero.webm'])].filter(Boolean).map(src => <source key={src} src={src} type={src.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />)`. Recommended: apply BOTH — (a) fixes any other consumers (Facilities/Gallery already dereference `.img`/`.hostel_img`) and (b) hardens against a slow/failed /api/content.",
+        "selector": "[data-testid=\"hero-video\"]",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Public landing page ↔ /api/content",
+        "issue": "Because Hero.jsx crashes on first render before /api/content resolves, the ErrorBoundary hides the whole page. This masks all downstream integration (footer phone, gallery tiles, video). Once the Hero.jsx crash is fixed, footer phone updates and reset flows should work end-to-end (verified via API: phone edit + revert succeed; hero video_media_id round-trips through /api/media/{id} on both PUT and public GET).",
+        "affected_selectors": ["[data-testid=\"hero-video\"]", "Footer phone", "gallery tiles"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_content_media_instagram.py",
+    "/app/backend/tests/test_sv_features.py",
+    "/app/backend/tests/test_receipts.py",
+    "/app/test_reports/pytest/iter3.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Fix Hero.jsx line 137-138 to defend against undefined video_url — add `.filter(Boolean)` AND/OR add `video_url: '/hero.mp4'` + `poster_url: DEFAULT_CONTENT.hero.poster_fallback` inside DEFAULT_CONTENT.hero in /app/frontend/src/lib/content.js. Currently the landing page renders the ErrorBoundary fallback 'Something went wrong. Please refresh.' for every visitor.",
+    "After fix, re-run browser test to confirm: (i) landing page renders hero + h1 + 6 gallery tiles + video, (ii) footer phone reflects CMS edits, (iii) still no horizontal overflow at 390 mobile / 1440 desktop."
+  ],
+  "critical_code_review_comments": [
+    "Hero.jsx uses `hero.video_url` without null-guard — must filter falsy sources OR seed DEFAULT_CONTENT with the derived fields. Same class of bug is latent in Facilities.jsx / Gallery.jsx if they read `.img`/`.hostel_img` before the fetch resolves (backend derives these fields from media_id — the frontend DEFAULT_CONTENT does not have them). Recommend a single `deriveContent(base)` helper on the FE that mirrors backend `get_site_content`.",
+    "server.py has now grown to 1896 lines — well past the 700-line guideline. CMS/media/Instagram belong in their own routers (e.g. routers/content.py, routers/media.py, routers/instagram.py).",
+    "MediaUpload accepts any base64 up to 9 MB but does not validate the declared mime against actual bytes (e.g. an mp4 header on a .png upload is allowed). Not a security issue since content is served with the declared mime + immutable cache, but worth noting.",
+    "_sync_fetch_instagram uses graph.instagram.com/me?fields=business_discovery(...) — business_discovery is a Graph-API-only field on the connected FB Page, not a graph.instagram.com/me field. The 502-on-garbage-token path is caught by the outer try/except so tests pass, but with a REAL IG-Login token this call will always fall through to the FB fallback. Fine for now, but the playbook's 'Route 1' comment is misleading."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_content_media_instagram.py"
+  ],
+  "success_rate": {"backend": "100% (36/36)", "frontend": "50% — Admin CMS UI works end-to-end, but the PUBLIC landing page is fully broken by the Hero.jsx crash"},
+  "test_credentials": "admissions@svinstitutions.co.in / SvAdmin@2025",
+  "seed_data_creation": "Created + deleted 1 test PNG (1x1) and 1 fake mp4 blob via /api/admin/media; briefly set + reverted CMS phone. No lingering TEST_ data. Site content and Instagram DB state = defaults after run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend: 36/36 pass — run `REACT_APP_BACKEND_URL=<url> pytest /app/backend/tests/ -n 0 -q`. The one critical bug is Hero.jsx line 138 (missing .filter(Boolean) OR DEFAULT_CONTENT.hero missing video_url/poster_url). Once fixed, verify landing page renders (currently shows only 'Something went wrong. Please refresh.'). Instagram tab currently disconnected; posts endpoint returns connected:false and never leaks tokens (verified). Gallery/facilities/hero video content flows were verified purely at the API level because the landing crash blocks browser verification — please re-run the UI browser test for those after the fix.",
+  "rca of the issue": "Hero.jsx renders <source> tags by uniquing `[hero.video_url, '/hero.mp4', '/hero.webm']` into a Set and calling `.endsWith('.webm')` on each entry. useContent() returns DEFAULT_CONTENT synchronously on first paint. DEFAULT_CONTENT.hero in /app/frontend/src/lib/content.js has `video_media_id: null` + `video_fallback: '/hero.mp4'` but does NOT include the derived `video_url` field (that field is only added server-side by get_site_content when merging over defaults). So `hero.video_url === undefined`, and `undefined.endsWith(...)` throws. React ErrorBoundary catches it and renders 'Something went wrong. Please refresh.' Repro: open https://sv-health-education.preview.emergentagent.com/ — the page shows only the error boundary. Mitigation (either or both): (1) Hero.jsx: `[...new Set([hero.video_url, '/hero.mp4', '/hero.webm'])].filter(Boolean).map(...)`. (2) content.js: add `video_url: '/hero.mp4', poster_url: DEFAULT_CONTENT.hero.poster_fallback` inside DEFAULT_CONTENT.hero. Long-term: implement a `deriveContent(base)` helper on the frontend that mirrors backend `get_site_content` so any partial/cached shape is safe."
+}

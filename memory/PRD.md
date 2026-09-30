@@ -50,6 +50,13 @@ Build a landing page for S V College of Nursing (https://littleflowerinstitution
 - Hero: arch-frame card is now a VIDEO hero — self-hosted looping clinic video (public/hero.mp4 3.6MB H.264 + public/hero.webm 780KB VP9 fallback, dual <source>, poster = previous hero image, autoplay muted loop playsinline). Hotlinked stock clips are referer-blocked, hence self-hosted; ships to Vercel with the repo. Verified playing (readyState 4) on desktop and loaded on mobile 390px
 - Pending note: embedding the LIVE Instagram feed (latest posts in-page) needs an Instagram access token from their business account — offered as next step
 
+## Implemented (2026-09-30, session 5 — CMS + Instagram live feed)
+- Admin Site Content manager (/admin/content, Topbar "Site Content"): tabs Details (name/tagline/email/phone/address/IG handle/hero stats), Hero (headline lines, paragraph, video upload ≤8MB, cover photo), Gallery (add/remove photos + captions/tags), Facilities (hostel photo), Instagram (token paste + connect)
+- Backend: media library (POST/DELETE /api/admin/media ≤9MB, public GET /api/media/{id} with Range/immutable cache), public GET /api/content merged over DEFAULT_CONTENT, admin PUT /api/admin/content; receipts + application PDFs now use the editable contact details; Instagram Business Discovery (graph.instagram.com/me → graph.facebook.com fallback via me/accounts), token auto-extended to 60-day long-lived when app id+secret pasted, posts cached in ig_posts, lazy 15-min refresh on public GET /api/instagram/posts, token never exposed
+- Gallery shows LIVE Instagram posts (permalinks) when connected; else editable static photos
+- Testing: backend 36/36 (new test_content_media_instagram.py); UI suite found one CRITICAL (landing crash: DEFAULT_CONTENT.hero lacked video_url/poster_url → Hero.jsx undefined.endsWith) — fixed (defaults seeded + .filter(Boolean)) and re-verified live: no error boundary, video playing, 6 tiles, footer phone from CMS
+- Note: server.py ~1900 lines — refactor into routers flagged as future cleanup
+
 ## Backlog / Next
 - P1: Email notification (Resend) to admissions on new application/enquiry.
 - P2: WhatsApp Business automation (user deferred) — auto-send reminders instead of manual link.
