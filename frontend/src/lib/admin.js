@@ -23,6 +23,19 @@ export const fmtDate = (iso) => {
 };
 export const inr = (n) => "₹ " + Number(n || 0).toLocaleString("en-IN");
 export const collected = (a) => (a.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+export const overdueFor = (a) => {
+  const pays = a.payments || [];
+  const paidBy = (sid) => pays.filter((p) => p.schedule_id === sid).reduce((s, p) => s + Number(p.amount || 0), 0);
+  const today = new Date().setHours(0, 0, 0, 0);
+  return (a.schedules || [])
+    .map((sc) => {
+      const outstanding = Number(sc.amount || 0) - paidBy(sc.id);
+      const overdueDays = sc.due_date ? Math.floor((today - new Date(sc.due_date).setHours(0, 0, 0, 0)) / 86400000) : -1;
+      return { ...sc, outstanding, overdueDays, isOverdue: outstanding > 0 && overdueDays >= 0 };
+    })
+    .filter((s) => s.isOverdue);
+};
+export const overdueTotal = (a) => overdueFor(a).reduce((s, r) => s + r.outstanding, 0);
 export const waLink = (phone) => {
   const d = (phone || "").split("").filter((c) => /\d/.test(c)).join("");
   return `https://wa.me/${d.length === 10 ? `91${d}` : d}`;

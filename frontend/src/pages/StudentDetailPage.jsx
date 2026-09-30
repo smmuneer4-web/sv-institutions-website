@@ -6,7 +6,7 @@ import {
   Building2, GraduationCap, Phone, Mail, AlertTriangle, IndianRupee, CalendarDays, Wallet,
 } from "lucide-react";
 import { api, formatApiError } from "../lib/api";
-import { useAdminAuth, Topbar, STATUS_STYLE, STATUS_LABEL, initials, fmtDate, inr, collected, waLink } from "../lib/admin";
+import { useAdminAuth, Topbar, STATUS_STYLE, STATUS_LABEL, initials, fmtDate, inr, collected, waLink, overdueFor, overdueTotal } from "../lib/admin";
 
 const METHODS = ["UPI", "Bank Transfer", "Cash", "Cheque", "Card", "Other"];
 const YEARS = ["year1", "year2", "year3", "year4"];
@@ -89,20 +89,13 @@ export default function StudentDetailPage() {
   const scheduledTotal = schedules.reduce((s, x) => s + Number(x.amount || 0), 0);
   const balance = planned - paid;
 
-  const paidBySchedule = (sid) => payments.filter((p) => p.schedule_id === sid).reduce((s, p) => s + Number(p.amount || 0), 0);
-  const today = new Date().setHours(0, 0, 0, 0);
-  const scheduleState = (sc) => {
-    const outstanding = Number(sc.amount || 0) - paidBySchedule(sc.id);
-    const overdueDays = sc.due_date ? Math.floor((today - new Date(sc.due_date).setHours(0, 0, 0, 0)) / 86400000) : -1;
-    const isOverdue = outstanding > 0 && overdueDays >= 0;
-    return { outstanding, overdueDays, isOverdue };
-  };
-  const overdueRows = schedules.map((sc) => ({ ...sc, ...scheduleState(sc) })).filter((s) => s.isOverdue);
+  const overdueRows = overdueFor(app);
+  const overdueOutstanding = overdueTotal(app);
 
   const reminderText = encodeURIComponent(
     `Dear Parent, this is a fee reminder from S V Group of Institutions for ${app.full_name} (${app.application_number}). ` +
     (overdueRows.length
-      ? `${overdueRows.length} installment(s) are overdue — outstanding on overdue schedules: ${inr(overdueRows.reduce((s, r) => s + r.outstanding, 0))}. `
+      ? `${overdueRows.length} installment(s) are overdue — outstanding on overdue schedules: ${inr(overdueOutstanding)}. `
       : `Outstanding balance: ${inr(balance)}. `) +
     "Kindly clear the dues at the earliest. - Admissions Office"
   );
@@ -173,6 +166,27 @@ export default function StudentDetailPage() {
       setPaymentForm(null);
     });
 
+  const downloadReceipt = async (p) => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api.get(`/applications/${app.id}/payments/${p.id}/receipt.pdf`, { responseType: "blob" });
+      const m = (res.headers["content-disposition"] || "").match(/filename="?([^"]+)"?/);
+      const url = URL.createObjectURL(res.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = m ? m[1] : `Receipt-${p.receipt_no || p.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(formatApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const removePayment = (id) =>
     run(async () => {
       const { data } = await api.delete(`/applications/${app.id}/payments/${id}`);
@@ -210,9 +224,6 @@ export default function StudentDetailPage() {
                 <BellRing className="h-3.5 w-3.5" /> Send Reminder{overdueRows.length ? ` (${overdueRows.length})` : ""}
               </a>
             )}
-            <button data-testid="student-download-pdf-button" onClick={() => window.print()} className={btn}>
-              <FileDown className="h-3.5 w-3.5" /> Download PDF
-            </button>
           </div>
         </div>
 
@@ -223,7 +234,7 @@ export default function StudentDetailPage() {
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#BE185D]" />
               <div>
                 <p className="text-sm font-bold text-[#9F1239]">{overdueRows.length} installment{overdueRows.length > 1 ? "s are" : " is"} overdue</p>
-                <p className="text-xs text-slate-500">Outstanding on overdue schedules: {inr(overdueRows.reduce((s, r) => s + r.outstanding, 0))}</p>
+                <p className="text-xs text-slate-500">Outstanding on overdue schedules: {inr(overdueOutstanding)}</p>
               </div>
             </div>
             {reminderHref && (
@@ -379,9 +390,7 @@ export default function StudentDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {schedules.map((sc) => {
-                  const st = scheduleState(sc);
-                  return (
+                {schedules.map((sc) => (
                     <tr key={sc.id} data-testid={`student-schedule-row-${sc.id}`} className="border-b border-rose-50 align-top last:border-0">
                       <td className="py-3.5 pr-4 font-semibold text-[#22090F]">{sc.label}</td>
                       <td className="px-4 py-3.5 font-semibold text-[#22090F]">{inr(sc.amount)}</td>
@@ -392,8 +401,7 @@ export default function StudentDetailPage() {
                         <button data-testid={`student-schedule-delete-${sc.id}`} aria-label="Delete schedule" onClick={() => window.confirm(`Remove schedule "${sc.label}"?`) && removeSchedule(sc.id)} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-[#9F1239]"><Trash2 className="h-4 w-4" /></button>
                       </td>
                     </tr>
-                  );
-                })}
+                  ))}
                 {schedules.length === 0 && (
                   <tr><td colSpan={5} className="py-10 text-center text-xs text-slate-400">No schedules yet. Click "Add Schedule" to plan installments.</td></tr>
                 )}
@@ -461,12 +469,14 @@ export default function StudentDetailPage() {
                       <td className="py-3.5 pr-4 text-slate-600">{fmtDate(p.created_at)}</td>
                       <td className="px-4 py-3.5">
                         <p className="font-semibold text-[#22090F]">{sc ? sc.label : "General"}</p>
+                        {p.receipt_no && <p data-testid={`payment-receipt-no-${p.id || p.created_at}`} className="font-mono text-[10px] font-semibold text-[#BE185D]">{p.receipt_no}</p>}
                         {p.remarks && <p className="text-xs text-slate-400">{p.remarks}</p>}
                       </td>
                       <td className="px-4 py-3.5 text-slate-600">{p.method || "—"}</td>
                       <td className="px-4 py-3.5 font-semibold text-emerald-700">{inr(p.amount)}</td>
                       <td className="px-4 py-3.5 text-slate-500">{p.reference || "—"}</td>
                       <td className="px-4 py-3.5 text-right no-print">
+                        <button data-testid={`student-payment-receipt-${p.id || p.created_at}`} aria-label="Download receipt" disabled={busy} onClick={() => downloadReceipt(p)} title="Download receipt PDF" className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-emerald-700"><FileDown className="h-4 w-4" /></button>
                         <button data-testid={`student-payment-edit-${p.id || p.created_at}`} aria-label="Edit payment" onClick={() => setPaymentForm({ mode: "edit", id: p.id, amount: String(p.amount), schedule_id: p.schedule_id || "", method: p.method || "UPI", remarks: p.remarks || "" })} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-[#BE185D]"><Pencil className="h-4 w-4" /></button>
                         <button data-testid={`student-payment-delete-${p.id || p.created_at}`} aria-label="Delete payment" onClick={() => window.confirm("Remove this payment record?") && removePayment(p.id || p.created_at)} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-[#9F1239]"><Trash2 className="h-4 w-4" /></button>
                       </td>

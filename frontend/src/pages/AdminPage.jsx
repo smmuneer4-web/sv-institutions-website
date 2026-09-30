@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Search, X, MessageCircle, Mail, Trash2, RefreshCw, ExternalLink, ChevronRight, Check } from "lucide-react";
+import { LogOut, Search, X, MessageCircle, Mail, Trash2, RefreshCw, ExternalLink, ChevronRight, Check, AlertTriangle } from "lucide-react";
 import { api, formatApiError, saveAuth, clearAuth } from "../lib/api";
-import { inr, collected } from "../lib/admin";
+import { inr, collected, overdueFor, overdueTotal } from "../lib/admin";
 import { useLenisStop } from "../lib/scroll";
 
 const STATUSES = ["submitted", "shortlist", "approved", "rejected"];
@@ -430,6 +430,8 @@ export default function AdminPage() {
     count: apps.filter((a) => a.programme === p).length,
     color: "bg-[#9F1239]",
   }));
+  const overdueStudents = apps.map((a) => ({ app: a, rows: overdueFor(a) })).filter((x) => x.rows.length > 0);
+  const overdueAmount = overdueStudents.reduce((s, x) => s + x.rows.reduce((t, r) => t + r.outstanding, 0), 0);
 
   return (
     <div className="min-h-screen bg-[#F8F5F2]">
@@ -524,6 +526,21 @@ export default function AdminPage() {
               <StatCard label="Shortlisted" value={statusBreakdown[1].count} sub="Pending action" testid="stat-shortlisted" />
               <StatCard label="Approved" value={statusBreakdown[2].count} sub="Confirmed seats" testid="stat-approved" />
             </div>
+
+            {overdueStudents.length > 0 && (
+              <div data-testid="overdue-alert-card" className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#BE185D]" />
+                  <div>
+                    <p className="text-sm font-bold text-[#9F1239]">{overdueStudents.length} student{overdueStudents.length > 1 ? "s" : ""} with overdue fee installments</p>
+                    <p className="text-xs text-slate-500">{inr(overdueAmount)} outstanding on overdue schedules — follow up on collections.</p>
+                  </div>
+                </div>
+                <a href="/admin/students" data-testid="overdue-alert-link" className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-200 transition-all hover:bg-[#9F1239]">
+                  Review in Students &amp; Fees
+                </a>
+              </div>
+            )}
 
             <div className="mt-6 grid gap-4 lg:grid-cols-3">
               <BreakdownPanel title="Status Breakdown" sub="Applications by current status" rows={statusBreakdown} testid="panel-status-breakdown" />

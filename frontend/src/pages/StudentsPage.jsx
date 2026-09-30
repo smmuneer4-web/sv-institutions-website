@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { RefreshCw, ChevronRight, Search } from "lucide-react";
-import { useAdminAuth, useApplications, Topbar, COLLEGES, STATUS_STYLE, STATUS_LABEL, initials, inr, collected } from "../lib/admin";
+import { RefreshCw, ChevronRight, Search, AlertTriangle } from "lucide-react";
+import { useAdminAuth, useApplications, Topbar, COLLEGES, STATUS_STYLE, STATUS_LABEL, initials, inr, collected, overdueFor, overdueTotal } from "../lib/admin";
 
 const TRACKED = ["shortlist", "approved"];
 
@@ -26,6 +26,8 @@ export default function StudentsPage() {
     .filter((a) =>
       [a.full_name, a.mobile, a.application_number, a.programme].join(" ").toLowerCase().includes(search.toLowerCase())
     );
+  const overdueStudents = tracked.filter((a) => overdueFor(a).length > 0);
+  const overdueSum = overdueStudents.reduce((s, a) => s + overdueTotal(a), 0);
 
   const planned = apps.reduce((s, a) => s + Number(a.fee_total || 0), 0);
   const paid = apps.reduce((s, a) => s + collected(a), 0);
@@ -82,13 +84,25 @@ export default function StudentsPage() {
 
         {error && <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-[#9F1239]">{error}</p>}
 
+        {overdueStudents.length > 0 && (
+          <div data-testid="students-overdue-banner" className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#BE185D]" />
+              <div>
+                <p className="text-sm font-bold text-[#9F1239]">{overdueStudents.length} student{overdueStudents.length > 1 ? "s" : ""} with overdue fee installments</p>
+                <p className="text-xs text-slate-500">{inr(overdueSum)} outstanding on overdue schedules</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mt-5 overflow-hidden rounded-3xl border border-rose-100 bg-white">
           <div className="flex items-center justify-between border-b border-rose-100 px-6 py-4">
             <p className="text-sm font-bold text-[#22090F]">Students</p>
             <p data-testid="students-table-count" className="text-xs font-semibold text-slate-400">{tracked.length} record(s)</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-sm">
+            <table className="w-full min-w-[960px] text-left text-sm">
               <thead>
                 <tr className="border-b border-rose-100 bg-rose-50/40 text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
                   <th className="px-6 py-4">Application ID</th>
@@ -97,12 +111,15 @@ export default function StudentsPage() {
                   <th className="px-6 py-4">Plan</th>
                   <th className="px-6 py-4">Collected</th>
                   <th className="px-6 py-4">Balance</th>
+                  <th className="px-6 py-4">Overdue</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4" />
                 </tr>
               </thead>
               <tbody>
-                {tracked.map((a) => (
+                {tracked.map((a) => {
+                  const od = overdueFor(a);
+                  return (
                   <tr
                     key={a.id}
                     data-testid={`students-row-${a.application_number}`}
@@ -134,6 +151,13 @@ export default function StudentsPage() {
                     <td className={`px-6 py-4 font-semibold ${a.fee_total - collected(a) > 0 ? "text-[#9F1239]" : "text-slate-400"}`}>
                       {inr(a.fee_total - collected(a))}
                     </td>
+                    <td className="px-6 py-4" data-testid={`students-row-overdue-${a.application_number}`}>
+                      {od.length ? (
+                        <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-[#9F1239]">{od.length} overdue · {inr(overdueTotal(a))}</span>
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_STYLE[a.status]}`}>
                         {STATUS_LABEL[a.status]}
@@ -143,10 +167,11 @@ export default function StudentsPage() {
                       <ChevronRight className="ml-auto h-4 w-4 text-slate-300" />
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {tracked.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-16 text-center text-sm text-slate-400">
+                    <td colSpan={9} className="px-6 py-16 text-center text-sm text-slate-400">
                       No students yet.
                       <span className="block">Set an application's status to "Shortlisted" or "Approved" to start tracking fees.</span>
                     </td>

@@ -14,6 +14,11 @@ from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from bson import ObjectId
 from pymongo import ReturnDocument
 from datetime import datetime, timezone, timedelta
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.colors import HexColor, white
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas as pdf_canvas
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -274,6 +279,243 @@ async def delete_enquiry(enquiry_id: str, user: dict = Depends(get_current_user)
 
 VALID_STATUSES = ["submitted", "shortlist", "approved", "rejected"]
 
+# ---------------- Fee receipts (branded PDF, one per payment) ----------------
+
+INSTITUTE_NAME = "S V GROUP OF INSTITUTIONS"
+INSTITUTE_TAGLINE = "Excellence in Health Education · Bengaluru"
+INSTITUTE_ADDRESS = "80 Feet Ring Road, Near Bangalore University, Mallathahalli Bus Stop, Bangalore - 560056"
+INSTITUTE_EMAIL = "admissions@svinstitutions.co.in"
+INSTITUTE_PHONE = "+91 90378 34632"
+LOGO_PATH = ROOT_DIR / "assets" / "sv-logo.png"
+
+_ONES = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+         "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]
+_TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+
+
+def _two_digit_words(n: int) -> str:
+    if n < 20:
+        return _ONES[n]
+    return (_TENS[n // 10] + (" " + _ONES[n % 10] if n % 10 else "")).strip()
+
+
+def _indian_words(n: int) -> str:
+    if n >= 10 ** 7:
+        words = _indian_words(n // 10 ** 7) + " Crore"
+        if n % 10 ** 7:
+            words += " " + _indian_words(n % 10 ** 7)
+        return words
+    parts = []
+    if (lakh := (n // 10 ** 5) % 100):
+        parts.append(_two_digit_words(lakh) + " Lakh")
+    if (thousand := (n // 10 ** 3) % 100):
+        parts.append(_two_digit_words(thousand) + " Thousand")
+    if (hundred := (n // 100) % 10):
+        parts.append(_ONES[hundred] + " Hundred")
+    if (rest := n % 100):
+        parts.append(_two_digit_words(rest))
+    return " ".join(parts)
+
+
+def amount_in_words(amount: float) -> str:
+    n = int(round(float(amount)))
+    if n <= 0:
+        return "Zero Rupees Only"
+    return f"{_indian_words(n)} Rupees Only"
+
+
+def _inr_format(n: float) -> str:
+    s = str(int(round(float(n))))
+    if len(s) > 3:
+        head, tail = s[:-3], s[-3:]
+        groups = []
+        while len(head) > 2:
+            groups.insert(0, head[-2:])
+            head = head[:-2]
+        if head:
+            groups.insert(0, head)
+        s = ",".join(groups) + "," + tail
+    return s
+
+
+def make_receipt_no(doc: dict) -> str:
+    number = (doc.get("application_number") or "").strip()
+    serial = number.rsplit("-", 1)[-1] if "-" in number else (number or "000000")
+    return f"SVR-{serial}-{uuid.uuid4().hex[:6].upper()}"
+
+
+async def _ensure_receipt_no(application_id: str, doc: dict, payment: dict) -> str:
+    if payment.get("receipt_no"):
+        return payment["receipt_no"]
+    receipt_no = make_receipt_no(doc)
+    await db.applications.update_one(
+        {"_id": application_id, "payments.id": payment["id"]},
+        {"$set": {"payments.$.receipt_no": receipt_no}},
+    )
+    return receipt_no
+
+
+def _build_receipt_pdf(app_doc: dict, payment: dict, receipt_no: str, generated_at: str) -> bytes:
+    W, H = A4
+    M = 46
+    MAROON, INK = HexColor(0x6E0A28), HexColor(0x22090F)
+    GREY, LINE, FOOTBG = HexColor(0x6B7280), HexColor(0xE5E7EB), HexColor(0xF3F4F6)
+    ROSEBG = HexColor(0xFDF2F8)
+
+    buf = BytesIO()
+    c = pdf_canvas.Canvas(buf, pagesize=A4)
+
+    schedule = _find_sub(app_doc.get("schedules", []), payment.get("schedule_id") or "") if payment.get("schedule_id") else None
+    fee_type = schedule["label"] if schedule else "Academic Fees"
+    amount = float(payment.get("amount") or 0)
+    planned = float(app_doc.get("fee_total") or 0) or sum(float(v or 0) for v in (app_doc.get("fee_years") or {}).values())
+    collected_total = sum(float(p.get("amount") or 0) for p in app_doc.get("payments", []))
+    balance = max(planned - collected_total, 0.0)
+
+    # Header
+    if LOGO_PATH.exists():
+        c.drawImage(str(LOGO_PATH), M, H - 112, width=62, height=62, mask="auto", preserveAspectRatio=True)
+    c.setFillColor(INK)
+    c.setFont("Helvetica-Bold", 17)
+    c.drawString(M + 76, H - 68, INSTITUTE_NAME)
+    c.setFillColor(GREY)
+    c.setFont("Helvetica", 9)
+    c.drawString(M + 76, H - 83, INSTITUTE_TAGLINE)
+    c.setFont("Helvetica", 8)
+    c.drawString(M + 76, H - 96, INSTITUTE_ADDRESS)
+    c.setFont("Helvetica", 9)
+    c.drawRightString(W - M, H - 68, INSTITUTE_EMAIL)
+    c.drawRightString(W - M, H - 81, INSTITUTE_PHONE)
+
+    # Banner
+    banner_top, banner_h = H - 112, 38
+    c.setFillColor(MAROON)
+    c.rect(0, banner_top - banner_h, W, banner_h, stroke=0, fill=1)
+    c.setFillColor(white)
+    c.setFont("Helvetica-Bold", 13.5)
+    c.drawCentredString(W / 2, banner_top - banner_h + 14, "PAYMENT RECEIPT")
+
+    # Received-with-thanks block (left)
+    y = banner_top - banner_h - 34
+    c.setFillColor(GREY)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(M, y, "RECEIVED WITH THANKS FROM")
+    c.setFillColor(INK)
+    c.setFont("Helvetica-Bold", 15)
+    c.drawString(M, y - 20, app_doc.get("full_name") or "—")
+    rows = [
+        ("APPLICATION ID", app_doc.get("application_number") or "—"),
+        ("MOBILE", app_doc.get("mobile") or "—"),
+        ("PROGRAMME", app_doc.get("programme") or "—"),
+        ("COLLEGE", app_doc.get("college") or "—"),
+    ]
+    y -= 44
+    for label, value in rows:
+        c.setFillColor(GREY)
+        c.setFont("Helvetica-Bold", 7.5)
+        c.drawString(M, y, label)
+        c.setFillColor(INK)
+        c.setFont("Helvetica", 10.5)
+        c.drawString(M, y - 13, str(value))
+        y -= 30
+
+    # Amount received (left, below)
+    y -= 14
+    c.setFillColor(GREY)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(M, y, "AMOUNT RECEIVED")
+    c.setFillColor(INK)
+    c.setFont("Helvetica-Bold", 23)
+    c.drawString(M, y - 30, f"INR {_inr_format(amount)}")
+    c.setFillColor(GREY)
+    words = f"Rupees (in words): {amount_in_words(amount)}"
+    wsize = 9.5
+    while c.stringWidth(words, "Helvetica-Oblique", wsize) > (W - 2 * M) and wsize > 6.5:
+        wsize -= 0.5
+    c.setFont("Helvetica-Oblique", wsize)
+    c.drawString(M, y - 46, words)
+
+    # Receipt details (right box)
+    bx, bw = 330, W - M - 330
+    by, bh = banner_top - banner_h - 34, 208
+    c.setFillColor(ROSEBG)
+    c.roundRect(bx, by - bh, bw, bh, 10, stroke=0, fill=1)
+    rx = bx + 18
+    c.setFillColor(GREY)
+    c.setFont("Helvetica-Bold", 7.5)
+    c.drawString(rx, by - 24, "RECEIPT NO.")
+    c.setFillColor(INK)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(rx, by - 39, receipt_no)
+    c.setFillColor(GREY)
+    c.setFont("Helvetica-Bold", 7.5)
+    c.drawString(rx, by - 62, "DATE")
+    c.setFillColor(INK)
+    c.setFont("Helvetica", 10.5)
+    c.drawString(rx, by - 77, _fmt_date_long(payment.get("created_at") or ""))
+    c.setFillColor(GREY)
+    c.setFont("Helvetica-Bold", 7.5)
+    c.drawString(rx, by - 100, "MODE")
+    c.setFillColor(INK)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(rx, by - 115, payment.get("method") or "—")
+    c.setFillColor(GREY)
+    c.setFont("Helvetica", 9)
+    c.drawString(rx, by - 130, fee_type)
+
+    # Financial breakdown
+    fy = min(y - 76, by - bh - 34)
+    fin_rows = [
+        ("Reference / UTR", payment.get("reference") or "—", INK, 10),
+        ("Remarks", payment.get("remarks") or "—", INK, 10),
+        ("Fees Planned", f"INR {_inr_format(planned)}", INK, 10.5),
+        ("Total Collected (incl. this)", f"INR {_inr_format(collected_total)}", INK, 10.5),
+        ("Balance", f"INR {_inr_format(balance)}", MAROON, 11.5),
+    ]
+    for label, value, color, size in fin_rows:
+        c.setFillColor(GREY)
+        c.setFont("Helvetica", 9.5)
+        c.drawString(M, fy, label)
+        c.setFillColor(color)
+        c.setFont("Helvetica-Bold", size)
+        c.drawRightString(W - M, fy, value)
+        c.setStrokeColor(LINE)
+        c.setLineWidth(0.6)
+        c.line(M, fy - 8, W - M, fy - 8)
+        fy -= 26
+
+    # Signatory
+    c.setStrokeColor(HexColor(0x9CA3AF))
+    c.setLineWidth(0.8)
+    c.line(W - M - 190, fy - 24, W - M, fy - 24)
+    c.setFillColor(GREY)
+    c.setFont("Helvetica", 8.5)
+    c.drawCentredString(W - M - 95, fy - 37, "Authorised Signatory")
+
+    # Footer
+    c.setFillColor(FOOTBG)
+    c.rect(0, 0, W, 36, stroke=0, fill=1)
+    c.setFillColor(GREY)
+    c.setFont("Helvetica", 8)
+    c.drawCentredString(W / 2, 21, "This is a system-generated receipt. Please retain for your records.")
+    c.drawCentredString(W / 2, 10, f"Generated on {generated_at}")
+
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
+def _fmt_date_long(iso: str) -> str:
+    try:
+        return datetime.fromisoformat(iso).strftime("%d %B %Y")
+    except (ValueError, TypeError):
+        return iso or "—"
+
+
+def _generated_stamp() -> str:
+    now = datetime.now()
+    return now.strftime("%d/%m/%Y, %I:%M:%S %p").lstrip("0").replace(" AM", " am").replace(" PM", " pm")
+
 
 class Application(BaseDocument):
     application_number: str = ""
@@ -499,6 +741,9 @@ async def set_fee_plan(application_id: str, input: FeePlanUpdate, user: dict = D
 async def add_payment(application_id: str, input: PaymentAdd, user: dict = Depends(get_current_user)):
     if input.amount <= 0:
         raise HTTPException(status_code=422, detail="Payment amount must be greater than zero")
+    doc = await db.applications.find_one({"_id": application_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
     payment = {
         "id": uuid.uuid4().hex,
         "amount": input.amount,
@@ -506,14 +751,13 @@ async def add_payment(application_id: str, input: PaymentAdd, user: dict = Depen
         "schedule_id": input.schedule_id,
         "method": input.method,
         "remarks": input.remarks,
+        "receipt_no": make_receipt_no(doc),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "received_by": user.get("email", ""),
     }
     doc = await db.applications.find_one_and_update(
         {"_id": application_id}, {"$push": {"payments": payment}}, return_document=ReturnDocument.AFTER
     )
-    if not doc:
-        raise HTTPException(status_code=404, detail="Application not found")
     return Application.from_mongo(doc)
 
 
@@ -657,6 +901,23 @@ async def delete_payment(application_id: str, payment_id: str, user: dict = Depe
     return Application.from_mongo(updated)
 
 
+@api_router.get("/applications/{application_id}/payments/{payment_id}/receipt.pdf")
+async def download_receipt(application_id: str, payment_id: str, user: dict = Depends(get_current_user)):
+    doc = await db.applications.find_one({"_id": application_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
+    payment = _find_sub(doc.get("payments", []), payment_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    receipt_no = await _ensure_receipt_no(application_id, doc, payment)
+    pdf = _build_receipt_pdf(doc, payment, receipt_no, _generated_stamp())
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="Receipt-{receipt_no}.pdf"'},
+    )
+
+
 @api_router.delete("/applications/{application_id}")
 async def delete_application(application_id: str, user: dict = Depends(get_current_user)):
     result = await db.applications.delete_one({"_id": application_id})
@@ -673,6 +934,7 @@ app.add_middleware(
     allow_origins=[o.strip() for o in os.environ.get('CORS_ORIGINS', '*').split(',') if o.strip()],
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 logging.basicConfig(
