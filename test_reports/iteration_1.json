@@ -1,0 +1,26 @@
+{
+  "summary": "Tested Fee Receipt PDF + Overdue-alert flag flow end-to-end for SV Group admissions console. Backend: 8/8 pytest pass (auth login+cookies, fixture SVN-202609-DDF7 exists with schedule 'First' due 2026-09-29, receipt_no format SVR-XXXX-XXXXXX enforced on new payments and stable across reads, PDF endpoint returns application/pdf %PDF magic + correct Content-Disposition, unauthenticated request rejected with 401, /payments POST assigns receipt_no and the just-created receipt is downloadable). Frontend: login → red overdue-alert-card on dashboard with '1 student · ₹50,000' + working link to /admin/students; students list shows students-overdue-banner and students-row-overdue-SVN-202609-DDF7 badge '1 overdue · ₹ 50,000'; student detail /admin/students/SVN-202609-DDF7 shows overdue-banner, 4 payment rows each render receipt-no (SVR-DDF7-*) + working FileDown icon that triggers a real browser download of a valid PDF (Receipt-SVR-DDF7-E11705.pdf, magic %PDF) without blanking the page; Log Payment inline form adds a new payment with a fresh SVR- receipt-no; dashboard inline payment on the applications row (payment-amount-input / payment-submit-button) recorded ₹100 and Collected updated from ₹1,00,500 → ₹1,00,600; WhatsApp reminder link (overdue-send-reminder-button) still opens https://wa.me/... with pre-filled text. Regression: /, /apply, /admin/students, /admin/students/:id render at 1920px and 390px mobile, no page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Student detail (dev-only)", "issues": ["React hydration warning: <span> injected inside <option> due to Emergent code-editor overlay attributes (x-source-var / x-excluded). Not application code; will not appear in prod build but noisy in console during testing."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_receipts.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GET /api/applications/{id} uses Mongo _id but the app number is stored in application_number; only /applications/by-number/{n} resolves the human ID. Frontend already uses by-number, but tests/scripts referencing 'application_id = SVN-...' will 404 unless resolved first. Consider accepting either _id or application_number in the by-id route for consistency.",
+    "AdminPage.jsx is 763 lines and StudentDetailPage.jsx is 531 lines — approaching the 700-line guideline; consider splitting payment form / schedule form / modal into separate components.",
+    "The bulk 'log payment' inline row on the dashboard does not display the new receipt_no anywhere in the row (only Collected total is updated). Not a bug per spec but a discoverability gap — consider a toast showing the receipt no. after inline submission."
+  ],
+  "updated_files": ["/app/backend/tests/test_receipts.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admissions@svinstitutions.co.in / SvAdmin@2025",
+  "seed_data_creation": "None; used existing fixture SVN-202609-DDF7 (Sreehari Anish). Cleanup of one UI-added ₹500 TEST_ui_add payment may not have completed — verify next run and remove if lingering. Dashboard inline test added ₹100 (not cleaned up).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend uses _id (uuid hex) as application id in path params; always resolve via GET /api/applications/by-number/{app_number} first. Login returns access_token in body AND sets httpOnly cookies; either works. Fixture SVN-202609-DDF7 now has 5-6 payments (originals + a ₹500 UI test + ₹100 dashboard-inline test) — treat all as fixture data. pytest.ini enforces -n 2 --dist loadscope, use `-n 0` to serialize; `-p no:xdist` errors.",
+  "rca of the issue": "N/A — no bugs found. Initial test failures were fixture-related (test used application_number in a path that expects the internal _id, and used 'fee_schedules' where the model exposes 'schedules'); tests corrected."
+}

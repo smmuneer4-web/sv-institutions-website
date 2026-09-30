@@ -32,7 +32,14 @@ Build a landing page for S V College of Nursing (https://littleflowerinstitution
 - Deployment: frontend on Vercel (react-scripts build; all @/ imports converted to relative; vercel.json SPA rewrites; .npmrc legacy-peer-deps; date-fns pinned v3; ajv v8 pinned). Backend on Render (uvicorn start command; requirements trimmed to public-PyPI packages; verify_password exception-safe + seed self-heals corrupt admin hashes). Cross-site auth: login/refresh also return JWTs in the response body; axios stores them in localStorage and sends Authorization: Bearer (cookie-block-proof across Vercel→Render), with single-retry refresh on 401; httpOnly cookies retained for same-site preview.
 - Incident resolved: manually-added plain-text admin hash in Atlas caused login 500s + startup crash loop; data repaired and code hardened.
 
+## Implemented (2026-09-30)
+- Fee Receipt PDF: true branded PDFs replace the page print-view. Backend GET /api/applications/{id}/payments/{payment_id}/receipt.pdf (admin JWT) renders with ReportLab: S V logo header (assets/sv-logo.png, 256px optimised), maroon PAYMENT RECEIPT banner, received-with-thanks block (name/app ID/mobile/programme/college), amount + amount-in-words (Indian numbering), pink receipt-details box (receipt no/date/mode/fee type from linked schedule label), Reference/UTR + Remarks + Fees Planned + Total Collected (incl. this) + Balance with Indian digit grouping, signatory line, system-generated footer. Receipt numbers SVR-<appSerial>-<6hex> assigned at payment creation (POST /payments) and lazily backfilled for legacy payments (stable across downloads). Frontend: per-payment FileDown download button in the payments table (blob download with Bearer token), receipt no. shown per row; page-level window.print button removed; CORS exposes Content-Disposition.
+- Due-date alerts (flag-only): shared overdueFor/overdueTotal helpers in lib/admin.js; red overdue alert card on the admin dashboard (/admin, overdue-alert-card) listing students with overdue installments + outstanding total + link to Students & Fees; Students list gets an Overdue column badge (count + amount) and a red students-overdue-banner; student detail reuses the shared helpers. Computed fresh on every console load (never stale).
+- WhatsApp automation intentionally skipped (user choice) — manual pre-filled wa.me reminder link preserved.
+
 ## Backlog / Next
 - P1: Email notification (Resend) to admissions on new application/enquiry.
+- P2: WhatsApp Business automation (user deferred) — auto-send reminders instead of manual link.
 - P2: Document uploads (10th/12th marksheets) via object storage; PDF export of applications from dashboard.
 - P2: Real campus photos for gallery when provided.
+- P3: Dashboard inline payment could surface the new receipt no. (toast) for discoverability.
