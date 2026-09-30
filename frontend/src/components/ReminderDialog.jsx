@@ -43,8 +43,7 @@ export default function ReminderDialog({ open, onClose, student, overdueItems = 
 
   useEffect(() => {
     if (open && student) setMessage(buildReminderMessage(student, overdueItems));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, student?.id]);
+  }, [open, student, overdueItems]);
 
   if (!open || !student) return null;
 
