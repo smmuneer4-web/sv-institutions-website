@@ -15,7 +15,7 @@ from bson import ObjectId
 from pymongo import ReturnDocument
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, A5, landscape
 from reportlab.lib.colors import HexColor, white
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas as pdf_canvas
@@ -356,14 +356,28 @@ async def _ensure_receipt_no(application_id: str, doc: dict, payment: dict) -> s
 
 
 def _build_receipt_pdf(app_doc: dict, payment: dict, receipt_no: str, generated_at: str) -> bytes:
-    W, H = A4
-    M = 46
-    MAROON, INK = HexColor(0x6E0A28), HexColor(0x22090F)
-    GREY, LINE, FOOTBG = HexColor(0x6B7280), HexColor(0xE5E7EB), HexColor(0xF3F4F6)
-    ROSEBG = HexColor(0xFDF2F8)
+    # A5 landscape, gold double-frame template
+    W, H = landscape(A5)
+    CX = 34
+    CW = W - 2 * CX
+    MAROON, INK = HexColor(0x6E0A28), HexColor(0x2B0B14)
+    GREY, LINE = HexColor(0x6B7280), HexColor(0xE5E7EB)
+    CREAM, PAGEBG = HexColor(0xFBF3E6), HexColor(0xF5EBDC)
+    GOLD = HexColor(0xC9A66B)
 
     buf = BytesIO()
-    c = pdf_canvas.Canvas(buf, pagesize=A4)
+    c = pdf_canvas.Canvas(buf, pagesize=(W, H))
+
+    # Page background + gold double frame
+    c.setFillColor(PAGEBG)
+    c.rect(0, 0, W, H, stroke=0, fill=1)
+    c.setFillColor(white)
+    c.rect(16, 16, W - 32, H - 32, stroke=0, fill=1)
+    c.setStrokeColor(GOLD)
+    c.setLineWidth(2.2)
+    c.rect(10, 10, W - 20, H - 20, stroke=1, fill=0)
+    c.setLineWidth(0.8)
+    c.rect(16, 16, W - 32, H - 32, stroke=1, fill=0)
 
     schedule = _find_sub(app_doc.get("schedules", []), payment.get("schedule_id") or "") if payment.get("schedule_id") else None
     fee_type = payment.get("fee_type") or (schedule["label"] if schedule else "Academic Fees")
@@ -372,133 +386,114 @@ def _build_receipt_pdf(app_doc: dict, payment: dict, receipt_no: str, generated_
     collected_total = sum(float(p.get("amount") or 0) for p in app_doc.get("payments", []))
     balance = max(planned - collected_total, 0.0)
 
-    # Header
+    # Header: logo, name, tagline, contact
     if LOGO_PATH.exists():
-        c.drawImage(str(LOGO_PATH), M, H - 112, width=62, height=62, mask="auto", preserveAspectRatio=True)
-    c.setFillColor(INK)
-    c.setFont("Helvetica-Bold", 17)
-    c.drawString(M + 76, H - 68, INSTITUTE_NAME)
-    c.setFillColor(GREY)
-    c.setFont("Helvetica", 9)
-    c.drawString(M + 76, H - 83, INSTITUTE_TAGLINE)
-    c.setFont("Helvetica", 8)
-    c.drawString(M + 76, H - 96, INSTITUTE_ADDRESS)
-    c.setFont("Helvetica", 9)
-    c.drawRightString(W - M, H - 68, INSTITUTE_EMAIL)
-    c.drawRightString(W - M, H - 81, INSTITUTE_PHONE)
-
-    # Banner
-    banner_top, banner_h = H - 112, 38
+        c.drawImage(str(LOGO_PATH), CX, H - 86, width=52, height=52, mask="auto", preserveAspectRatio=True)
+    tx = CX + 64
     c.setFillColor(MAROON)
-    c.rect(0, banner_top - banner_h, W, banner_h, stroke=0, fill=1)
+    c.setFont("Helvetica-Bold", 15.5)
+    c.drawString(tx, H - 52, INSTITUTE_NAME)
+    c.setFont("Helvetica-Oblique", 8.5)
+    c.drawString(tx, H - 65, INSTITUTE_TAGLINE)
+    c.setFillColor(GREY)
+    c.setFont("Helvetica", 7.5)
+    c.drawString(tx, H - 77, f"{INSTITUTE_EMAIL} · {INSTITUTE_PHONE}")
+
+    # Banner row: maroon title band left, receipt no + date right
+    by = H - 118
+    c.setFillColor(MAROON)
+    c.rect(CX, by, 218, 24, stroke=0, fill=1)
     c.setFillColor(white)
-    c.setFont("Helvetica-Bold", 13.5)
-    c.drawCentredString(W / 2, banner_top - banner_h + 14, "PAYMENT RECEIPT")
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(CX + 12, by + 8, "PAYMENT RECEIPT")
+    c.setFillColor(MAROON)
+    c.setFont("Helvetica-Bold", 8.5)
+    c.drawRightString(W - CX, by + 16, f"Receipt No.: {receipt_no}")
+    c.drawRightString(W - CX, by + 6, f"Date: {_fmt_date_long(payment.get('date') or payment.get('created_at') or '')}")
 
-    # Received-with-thanks block (left)
-    y = banner_top - banner_h - 34
+    # Received with thanks
+    y = by - 20
     c.setFillColor(GREY)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(M, y, "RECEIVED WITH THANKS FROM")
+    c.setFont("Helvetica-Bold", 6.5)
+    c.drawString(CX, y, "RECEIVED WITH THANKS FROM")
     c.setFillColor(INK)
-    c.setFont("Helvetica-Bold", 15)
-    c.drawString(M, y - 20, app_doc.get("full_name") or "—")
-    rows = [
-        ("APPLICATION ID", app_doc.get("application_number") or "—"),
-        ("MOBILE", app_doc.get("mobile") or "—"),
-        ("PROGRAMME", app_doc.get("programme") or "—"),
-        ("COLLEGE", app_doc.get("college") or "—"),
-    ]
-    y -= 44
-    for label, value in rows:
-        c.setFillColor(GREY)
-        c.setFont("Helvetica-Bold", 7.5)
-        c.drawString(M, y, label)
-        c.setFillColor(INK)
-        c.setFont("Helvetica", 10.5)
-        c.drawString(M, y - 13, str(value))
-        y -= 30
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(CX, y - 16, app_doc.get("full_name") or "—")
+    c.setFillColor(HexColor(0x374151))
+    c.setFont("Helvetica", 8)
+    c.drawString(CX, y - 29, f"Application ID: {app_doc.get('application_number') or '—'}  ·  Mobile: {app_doc.get('mobile') or '—'}")
+    c.drawString(CX, y - 41, f"{app_doc.get('programme') or '—'}  ·  {app_doc.get('college') or '—'}")
+    c.setStrokeColor(LINE)
+    c.setLineWidth(0.7)
+    c.line(CX, y - 50, W - CX, y - 50)
 
-    # Amount received (left, below)
-    y -= 14
+    # Amount box (cream, gold border) + mode (right)
+    aby, abh, abw = y - 104, 46, 252
+    c.setFillColor(CREAM)
+    c.setStrokeColor(GOLD)
+    c.setLineWidth(1)
+    c.roundRect(CX, aby, abw, abh, 4, stroke=1, fill=1)
     c.setFillColor(GREY)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(M, y, "AMOUNT RECEIVED")
+    c.setFont("Helvetica-Bold", 6.5)
+    c.drawString(CX + 10, aby + abh - 13, "AMOUNT RECEIVED")
+    c.setFillColor(MAROON)
+    c.setFont("Helvetica-Bold", 19)
+    c.drawString(CX + 10, aby + 8, f"INR {_inr_format(amount)}")
+    c.setFillColor(GREY)
+    c.setFont("Helvetica-Bold", 6.5)
+    c.drawRightString(W - CX, aby + abh - 13, "MODE")
     c.setFillColor(INK)
-    c.setFont("Helvetica-Bold", 23)
-    c.drawString(M, y - 30, f"INR {_inr_format(amount)}")
+    c.setFont("Helvetica-Bold", 12)
+    c.drawRightString(W - CX, aby + 20, payment.get("method") or "—")
     c.setFillColor(GREY)
+    c.setFont("Helvetica", 7.5)
+    c.drawRightString(W - CX, aby + 9, fee_type)
+
+    # Amount in words
+    c.setFillColor(INK)
     words = f"Rupees (in words): {amount_in_words(amount)}"
-    wsize = 9.5
-    while c.stringWidth(words, "Helvetica-Oblique", wsize) > (W - 2 * M) and wsize > 6.5:
-        wsize -= 0.5
+    wsize = 8
+    while c.stringWidth(words, "Helvetica-Oblique", wsize) > CW and wsize > 6:
+        wsize -= 0.25
     c.setFont("Helvetica-Oblique", wsize)
-    c.drawString(M, y - 46, words)
+    c.drawString(CX, aby - 14, words)
 
-    # Receipt details (right box)
-    bx, bw = 330, W - M - 330
-    by, bh = banner_top - banner_h - 34, 208
-    c.setFillColor(ROSEBG)
-    c.roundRect(bx, by - bh, bw, bh, 10, stroke=0, fill=1)
-    rx = bx + 18
-    c.setFillColor(GREY)
-    c.setFont("Helvetica-Bold", 7.5)
-    c.drawString(rx, by - 24, "RECEIPT NO.")
-    c.setFillColor(INK)
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(rx, by - 39, receipt_no)
-    c.setFillColor(GREY)
-    c.setFont("Helvetica-Bold", 7.5)
-    c.drawString(rx, by - 62, "DATE")
-    c.setFillColor(INK)
-    c.setFont("Helvetica", 10.5)
-    c.drawString(rx, by - 77, _fmt_date_long(payment.get("date") or payment.get("created_at") or ""))
-    c.setFillColor(GREY)
-    c.setFont("Helvetica-Bold", 7.5)
-    c.drawString(rx, by - 100, "MODE")
-    c.setFillColor(INK)
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(rx, by - 115, payment.get("method") or "—")
-    c.setFillColor(GREY)
-    c.setFont("Helvetica", 9)
-    c.drawString(rx, by - 130, fee_type)
-
-    # Financial breakdown
-    fy = min(y - 76, by - bh - 34)
+    # Financial breakdown — alternating cream bands
+    fy = aby - 30
+    row_h = 15.5
     fin_rows = [
-        ("Reference / UTR", payment.get("reference") or "—", INK, 10),
-        ("Remarks", payment.get("remarks") or "—", INK, 10),
-        ("Fees Planned", f"INR {_inr_format(planned)}", INK, 10.5),
-        ("Total Collected (incl. this)", f"INR {_inr_format(collected_total)}", INK, 10.5),
-        ("Balance", f"INR {_inr_format(balance)}", MAROON, 11.5),
+        ("Reference / UTR", payment.get("reference") or "—", INK, False),
+        ("Remarks", payment.get("remarks") or "—", INK, False),
+        ("Fees Planned", f"INR {_inr_format(planned)}", INK, True),
+        ("Total Collected (incl. this)", f"INR {_inr_format(collected_total)}", INK, True),
+        ("Balance", f"INR {_inr_format(balance)}", MAROON, True),
     ]
-    for label, value, color, size in fin_rows:
+    for i, (label, value, color, bold) in enumerate(fin_rows):
+        if i % 2 == 0:
+            c.setFillColor(CREAM)
+            c.rect(CX, fy - row_h + 3, CW, row_h, stroke=0, fill=1)
         c.setFillColor(GREY)
-        c.setFont("Helvetica", 9.5)
-        c.drawString(M, fy, label)
+        c.setFont("Helvetica", 7.5)
+        c.drawString(CX + 8, fy - 7, label)
         c.setFillColor(color)
-        c.setFont("Helvetica-Bold", size)
-        c.drawRightString(W - M, fy, value)
-        c.setStrokeColor(LINE)
-        c.setLineWidth(0.6)
-        c.line(M, fy - 8, W - M, fy - 8)
-        fy -= 26
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", 7.5)
+        c.drawRightString(W - CX - 8, fy - 7, value)
+        fy -= row_h
 
     # Signatory
+    sy = fy - 16
     c.setStrokeColor(HexColor(0x9CA3AF))
-    c.setLineWidth(0.8)
-    c.line(W - M - 190, fy - 24, W - M, fy - 24)
+    c.setLineWidth(0.7)
+    c.line(W - CX - 150, sy, W - CX, sy)
     c.setFillColor(GREY)
-    c.setFont("Helvetica", 8.5)
-    c.drawCentredString(W - M - 95, fy - 37, "Authorised Signatory")
+    c.setFont("Helvetica", 7)
+    c.drawCentredString(W - CX - 75, sy - 10, "Authorised Signatory")
 
     # Footer
-    c.setFillColor(FOOTBG)
-    c.rect(0, 0, W, 36, stroke=0, fill=1)
     c.setFillColor(GREY)
-    c.setFont("Helvetica", 8)
-    c.drawCentredString(W / 2, 21, "This is a system-generated receipt. Please retain for your records.")
-    c.drawCentredString(W / 2, 10, f"Generated on {generated_at}")
+    c.setFont("Helvetica", 6.5)
+    c.drawString(CX, 24, "This is a system-generated receipt. Please retain for your records.")
+    c.drawRightString(W - CX, 24, f"Generated on {generated_at}")
 
     c.showPage()
     c.save()
@@ -514,7 +509,8 @@ def _fmt_date_long(iso: str) -> str:
 
 def _generated_stamp() -> str:
     now = datetime.now()
-    return now.strftime("%d/%m/%Y, %I:%M:%S %p").lstrip("0").replace(" AM", " am").replace(" PM", " pm")
+    clock = now.strftime("%I:%M:%S %p").lstrip("0").replace(" AM", " am").replace(" PM", " pm")
+    return f"{now.day}/{now.month}/{now.year}, {clock}"
 
 
 class Application(BaseDocument):
