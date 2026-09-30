@@ -13,7 +13,7 @@ const CourseRow = ({ college, course, onChanged }) => {
 
   const run = (fn) => {
     setBusy(true);
-    fn()
+    return fn()
       .then((collegeDoc) => onChanged(collegeDoc, true))
       .catch((e) => window.alert(formatApiError(e)))
       .finally(() => setBusy(false));
@@ -64,7 +64,7 @@ const CollegeCard = ({ college, onChanged }) => {
 
   const run = (fn) => {
     setBusy(true);
-    fn()
+    return fn()
       .then((doc) => onChanged(doc, true))
       .catch((e) => window.alert(formatApiError(e)))
       .finally(() => setBusy(false));

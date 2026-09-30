@@ -1,0 +1,42 @@
+{
+  "summary": "Comprehensive test of 14-item iteration (S V Group new features + revamped A5 receipt). Backend: 20/20 pytest pass — receipt PDF A5-landscape (595.3x419.5), all template strings (S V GROUP OF INSTITUTIONS, PAYMENT RECEIPT, Receipt No.: SVR-, RECEIVED WITH THANKS FROM, AMOUNT RECEIVED, INR, Rupees (in words), MODE, Reference/UTR, Fees Planned, Total Collected, Balance, Authorised Signatory, 'Generated on d/m/yyyy'); receipt_no stable across downloads; public track endpoint + copy PDF; colleges CRUD + course CRUD (add/rename/toggle/delete); seed fixtures svcon+drvson intact; bulk-import validates unknown courseId and creates valid rows; /api/admin/stats returns 6-month byMonth/appsByMonth/byCollege/byStatus; admin application PDF; payment date+fee_type+receiver persist; scholarship_amount reduces fee_total. Frontend: /apply track panel works (SVN-202609-DDF7 finds Sreehari + download link; bogus number → track-error); draft restore via sv_application_draft after reload; step-2 college cards dynamic (svcon → 3 programmes, drvson → 1); admin login OK; dashboard shows chart-revenue-area + chart-status-donut + chart-college-bar + overdue-alert-card; bulk-import-dialog opens with template + run buttons; reminder-dialog (from both student-send-reminder-link and overdue-send-reminder-button) pre-fills 490-char message including 'S V' signature, has whatsapp-guardian/email/copy buttons; student-application-pdf-button visible; student-full-editor-button opens application-editor-modal, editor-field-guardian_occupation edit → editor-save-button persists across reload (reverted); student-plan-edit-button opens plan editor with student-plan-scholarship-input; Log Payment form shows student-payment-form-date-input + student-payment-form-fee-type-select (options: Application/Admission/Tuition/Uniform/Other Fees) + student-payment-form-receiver-input. FOUND ONE CRITICAL FRONTEND BUG in CollegesManager.jsx: run() helper does not return the inner promise, so buttons chaining .then() on run() (Add Course save, Edit Course save, Edit College save) throw 'Cannot read properties of undefined (reading then)' after a successful API call — Add Course still writes the course to DB but the modal freeze / error overlay makes course-edit and college-edit save flows unusable.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "CollegesManager.jsx",
+        "issue": "run(fn) helper doesn't return the promise; three onClick handlers chain .then() on the return value and crash with 'Cannot read properties of undefined (reading then)' after the API call succeeds. Affected buttons: college-add-course-save-<id> (line 132), college-course-save-<id> (line 32), college-save-<id> (line 83). The API side-effect DOES happen (course/college is created/updated) but the UI freezes with Emergent runtime-error overlay and the modal never closes / form never resets. Fix: `const run = (fn) => { setBusy(true); return fn().then(...).catch(...).finally(...); };` — add the `return` keyword in both CourseRow (line 14-20) and CollegeCard (line 65-71) run helpers.",
+        "selector": "[data-testid=\"college-add-course-save-<id>\"], [data-testid=\"college-course-save-<id>\"], [data-testid=\"college-save-<id>\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "StudentDetailPage (dev-only)", "issues": ["Recurring React hydration warning '<span> cannot be a child of <option>' due to Emergent code-editor overlay attributes injected into <option> nodes — noise only in dev preview, not application code."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sv_features.py",
+    "/app/backend/tests/test_receipts.py",
+    "/app/test_reports/pytest/iter2_full.xml"
+  ],
+  "action_items": [
+    "Fix CollegesManager.jsx run() helper — add `return` so `.then()` chaining works. Locations: line 14-20 (CourseRow) and line 65-71 (CollegeCard). This is the ONE blocking bug found in this iteration; everything else (11/12 features) passed end-to-end."
+  ],
+  "critical_code_review_comments": [
+    "CollegesManager.jsx `run()` returns undefined but callers do `run(...).then(...)` — direct crash after successful API call.",
+    "AdminPage.jsx (763 lines) and StudentDetailPage.jsx (~540 lines) approaching the 700-line guideline (repeated from iteration_1).",
+    "PaymentAdd model uses field name `date` (frontend also sends `date`), but the review-request spec mentioned `paid_on` — no bug, just noting the field is `date` throughout.",
+    "Legacy payments in fixture SVN-202609-DDF7 have `date=None`, `fee_type=None`, `receiver=None` (pre-migration). New payments correctly carry all three fields. If needed, a one-time backfill could give them a default date=created_at[:10]."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sv_features.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "92% (13/14 features work; CollegesManager save buttons crash post-success)"},
+  "test_credentials": "admissions@svinstitutions.co.in / SvAdmin@2025",
+  "seed_data_creation": "Created and deleted: 1 TEST_UI_College with 1 TEST_UI_Course (cleaned up via API after runtime error), 1 pytest bulk-imported application, 1 pytest payment (₹500 UPI Uniform Fees). Guardian_occupation on fixture SVN-202609-DDF7 was momentarily changed to 'TEST_Occupation_Pytest' and reverted to empty. Scholarship on fixture briefly set to 10000 then reverted to 0. Final state: no lingering TEST_ data.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Fixture SVN-202609-DDF7 still has 4 payments (2 legacy w/o date/fee_type/receiver + 2 fresh with them). All TEST_ scoped data cleaned. Backend tests: /app/backend/tests/test_sv_features.py + test_receipts.py — 20 tests total, run with `REACT_APP_BACKEND_URL=<url> pytest tests/ -n 0`. The one bug (CollegesManager run() missing return) is trivial (add one keyword). After main agent fixes, re-run only the /admin/colleges UI flow — everything else is green.",
+  "rca of the issue": "CollegesManager.jsx defines `const run = (fn) => { setBusy(true); fn().then(...).catch(...).finally(...) };` — no return. Callers write `onClick={() => run(() => addCourse(...)).then(() => { setAddOpen(false); ... })}` expecting run() to be a thenable. Because run returns undefined, the `.then()` immediately throws 'Cannot read properties of undefined (reading then)' AFTER the successful API round-trip — so the DB write happens (visible under Add Course + Edit Course + Edit College Save paths) but the UI freezes with the Emergent runtime-error overlay and setAddOpen(false)/setEdit(false)/setEditMeta(false) never fires. Reproduction: /admin/colleges → Add College → Add Course → fill name → Save → success alert never shown, but a subsequent GET /api/colleges shows the course exists. Fix: prepend `return` to `fn().then(...)` in both `run` helpers (lines 14-20 and 65-71); no test needed on the API side."
+}
