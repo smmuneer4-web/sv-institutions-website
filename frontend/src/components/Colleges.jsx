@@ -27,7 +27,7 @@ const COLLEGES = [
 
 export default function Colleges() {
   return (
-    <section id="colleges" className="bg-gradient-to-b from-transparent via-rose-50/50 to-transparent py-24 lg:py-32">
+    <section id="colleges" className="bg-gradient-to-b from-transparent via-rose-50/50 to-transparent py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-5 lg:px-10">
         <SectionHead
           eyebrow="Our Institutions"

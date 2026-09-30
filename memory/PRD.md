@@ -40,6 +40,10 @@ Build a landing page for S V College of Nursing (https://littleflowerinstitution
 - Fee receipt PDF REBUILT to the user's attached template: A5 LANDSCAPE (595.3x419.5), gold double-frame + cream page bg, maroon PAYMENT RECEIPT band left with Receipt No./Date right, received-with-thanks block, AMOUNT RECEIVED cream box w/ gold border, MODE right, words, 5 alternating-cream financial bands, signatory, footer "Generated on d/m/yyyy, h:mm:ss am/pm"
 - Testing: backend pytest 20/20 (/app/backend/tests/test_receipts.py, test_sv_features.py); full UI suite iteration_2 — one bug found+fixed (CollegesManager run() missing promise return) and re-verified
 
+## Implemented (2026-09-30, session 3 — visual edits)
+- Gallery rebuilt as an Instagram-style feed (per visual editor edit): profile strip (IG-gradient avatar ring, @svinstitutions handle, Follow button → instagram.com/svinstitutions — placeholder handle via INSTAGRAM_HANDLE const in Gallery.jsx), authentic 3-col square-tile grid with tight gutters, IG glyph per tile, hover overlay (heart/comment + caption), tap hint on mobile; lightbox kept
+- Section gaps normalized+tightened across landing (About, Colleges, Courses, Affiliations, Gallery): one scale py-20 lg:py-28 (was py-24 lg:py-32)
+
 ## Backlog / Next
 - P1: Email notification (Resend) to admissions on new application/enquiry.
 - P2: WhatsApp Business automation (user deferred) — auto-send reminders instead of manual link.

@@ -24,7 +24,7 @@ const VALUES = [
 
 export default function About() {
   return (
-    <section id="about" className="py-24 lg:py-32">
+    <section id="about" className="py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-5 lg:px-10">
         <SectionHead
           eyebrow="About the Institution"

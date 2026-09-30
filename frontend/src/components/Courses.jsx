@@ -52,7 +52,7 @@ export default function Courses() {
   const fees = () => setFeesOpen(true);
 
   return (
-    <section id="courses" className="py-24 lg:py-32">
+    <section id="courses" className="py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-5 lg:px-10">
         <SectionHead
           eyebrow="Academic Programs"

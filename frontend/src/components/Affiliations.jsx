@@ -53,7 +53,7 @@ export default function Affiliations() {
   const current = viewer?.docs[active];
 
   return (
-    <section id="affiliations" className="relative overflow-hidden bg-[#6E0A28] py-24 lg:py-32">
+    <section id="affiliations" className="relative overflow-hidden bg-[#6E0A28] py-20 lg:py-28">
       <div className="pointer-events-none absolute -left-32 bottom-0 h-96 w-96 rounded-full bg-rose-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -right-24 top-0 h-80 w-80 rounded-full bg-teal-400/10 blur-3xl" />
 
