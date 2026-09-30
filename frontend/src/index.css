@@ -171,3 +171,9 @@
 .pulse-dot {
   animation: pulse-dot 1.8s ease-in-out infinite;
 }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff !important; }
+  .grain::before { display: none !important; }
+}

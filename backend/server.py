@@ -334,6 +334,8 @@ class Application(BaseDocument):
 
     fee_total: float = 0.0
     payments: List[Dict[str, Any]] = Field(default_factory=list)
+    fee_years: Dict[str, float] = Field(default_factory=dict)
+    schedules: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class ApplicationCreate(BaseModel):
@@ -389,6 +391,9 @@ class ApplicationUpdate(BaseModel):
     model_config = ConfigDict(extra="ignore")
     status: Optional[str] = None
     admin_notes: Optional[str] = None
+    full_name: Optional[str] = None
+    mobile: Optional[str] = None
+    email: Optional[str] = None
 
 
 @api_router.post("/applications", response_model=Application)
@@ -440,6 +445,12 @@ async def update_application(application_id: str, input: ApplicationUpdate, user
         updates["status"] = input.status
     if input.admin_notes is not None:
         updates["admin_notes"] = input.admin_notes
+    if input.full_name is not None and input.full_name.strip():
+        updates["full_name"] = input.full_name.strip()
+    if input.mobile is not None:
+        updates["mobile"] = input.mobile
+    if input.email is not None:
+        updates["email"] = input.email
     if not updates:
         raise HTTPException(status_code=422, detail="Nothing to update")
     doc = await db.applications.find_one_and_update(
@@ -459,6 +470,9 @@ class PaymentAdd(BaseModel):
     model_config = ConfigDict(extra="ignore")
     amount: float
     reference: str = ""
+    schedule_id: str = ""
+    method: str = ""
+    remarks: str = ""
 
 
 @api_router.get("/applications/by-number/{application_number}", response_model=Application)
@@ -486,8 +500,12 @@ async def add_payment(application_id: str, input: PaymentAdd, user: dict = Depen
     if input.amount <= 0:
         raise HTTPException(status_code=422, detail="Payment amount must be greater than zero")
     payment = {
+        "id": uuid.uuid4().hex,
         "amount": input.amount,
         "reference": input.reference,
+        "schedule_id": input.schedule_id,
+        "method": input.method,
+        "remarks": input.remarks,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "received_by": user.get("email", ""),
     }
@@ -497,6 +515,146 @@ async def add_payment(application_id: str, input: PaymentAdd, user: dict = Depen
     if not doc:
         raise HTTPException(status_code=404, detail="Application not found")
     return Application.from_mongo(doc)
+
+
+class FeeYearsUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    fee_years: Dict[str, float] = Field(default_factory=dict)
+
+
+@api_router.patch("/applications/{application_id}/fee-years", response_model=Application)
+async def set_fee_years(application_id: str, input: FeeYearsUpdate, user: dict = Depends(get_current_user)):
+    if any(v < 0 for v in input.fee_years.values()):
+        raise HTTPException(status_code=422, detail="Fee amounts cannot be negative")
+    fee_total = float(sum(input.fee_years.values()))
+    doc = await db.applications.find_one_and_update(
+        {"_id": application_id},
+        {"$set": {"fee_years": input.fee_years, "fee_total": fee_total}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return Application.from_mongo(doc)
+
+
+class ScheduleAdd(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    label: str
+    amount: float
+    due_date: str = ""
+    remarks: str = ""
+
+
+class ScheduleUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    label: Optional[str] = None
+    amount: Optional[float] = None
+    due_date: Optional[str] = None
+    remarks: Optional[str] = None
+
+
+class PaymentUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    amount: Optional[float] = None
+    reference: Optional[str] = None
+    schedule_id: Optional[str] = None
+    method: Optional[str] = None
+    remarks: Optional[str] = None
+
+
+def _find_sub(items, item_id):
+    return next((x for x in items if x.get("id") == item_id), None)
+
+
+@api_router.post("/applications/{application_id}/schedules", response_model=Application)
+async def add_schedule(application_id: str, input: ScheduleAdd, user: dict = Depends(get_current_user)):
+    if input.amount <= 0:
+        raise HTTPException(status_code=422, detail="Schedule amount must be greater than zero")
+    if not input.label.strip():
+        raise HTTPException(status_code=422, detail="Schedule label is required")
+    item = {"id": uuid.uuid4().hex, "label": input.label.strip(), "amount": input.amount, "due_date": input.due_date, "remarks": input.remarks}
+    doc = await db.applications.find_one_and_update(
+        {"_id": application_id}, {"$push": {"schedules": item}}, return_document=ReturnDocument.AFTER
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return Application.from_mongo(doc)
+
+
+@api_router.patch("/applications/{application_id}/schedules/{schedule_id}", response_model=Application)
+async def update_schedule(application_id: str, schedule_id: str, input: ScheduleUpdate, user: dict = Depends(get_current_user)):
+    doc = await db.applications.find_one({"_id": application_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
+    items = doc.get("schedules", [])
+    item = _find_sub(items, schedule_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    if input.label is not None:
+        item["label"] = input.label.strip()
+    if input.amount is not None:
+        if input.amount <= 0:
+            raise HTTPException(status_code=422, detail="Schedule amount must be greater than zero")
+        item["amount"] = input.amount
+    if input.due_date is not None:
+        item["due_date"] = input.due_date
+    if input.remarks is not None:
+        item["remarks"] = input.remarks
+    updated = await db.applications.find_one_and_update(
+        {"_id": application_id}, {"$set": {"schedules": items}}, return_document=ReturnDocument.AFTER
+    )
+    return Application.from_mongo(updated)
+
+
+@api_router.delete("/applications/{application_id}/schedules/{schedule_id}", response_model=Application)
+async def delete_schedule(application_id: str, schedule_id: str, user: dict = Depends(get_current_user)):
+    doc = await db.applications.find_one({"_id": application_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
+    items = [x for x in doc.get("schedules", []) if x.get("id") != schedule_id]
+    updated = await db.applications.find_one_and_update(
+        {"_id": application_id}, {"$set": {"schedules": items}}, return_document=ReturnDocument.AFTER
+    )
+    return Application.from_mongo(updated)
+
+
+@api_router.patch("/applications/{application_id}/payments/{payment_id}", response_model=Application)
+async def update_payment(application_id: str, payment_id: str, input: PaymentUpdate, user: dict = Depends(get_current_user)):
+    doc = await db.applications.find_one({"_id": application_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
+    payments = doc.get("payments", [])
+    for x in payments:
+        x.setdefault("id", uuid.uuid4().hex)
+    item = _find_sub(payments, payment_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    if input.amount is not None:
+        if input.amount <= 0:
+            raise HTTPException(status_code=422, detail="Payment amount must be greater than zero")
+        item["amount"] = input.amount
+    for field in ("reference", "schedule_id", "method", "remarks"):
+        if getattr(input, field) is not None:
+            item[field] = getattr(input, field)
+    updated = await db.applications.find_one_and_update(
+        {"_id": application_id}, {"$set": {"payments": payments}}, return_document=ReturnDocument.AFTER
+    )
+    return Application.from_mongo(updated)
+
+
+@api_router.delete("/applications/{application_id}/payments/{payment_id}", response_model=Application)
+async def delete_payment(application_id: str, payment_id: str, user: dict = Depends(get_current_user)):
+    doc = await db.applications.find_one({"_id": application_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Application not found")
+    payments = doc.get("payments", [])
+    for x in payments:
+        x.setdefault("id", uuid.uuid4().hex)
+    payments = [x for x in payments if x.get("id") != payment_id]
+    updated = await db.applications.find_one_and_update(
+        {"_id": application_id}, {"$set": {"payments": payments}}, return_document=ReturnDocument.AFTER
+    )
+    return Application.from_mongo(updated)
 
 
 @api_router.delete("/applications/{application_id}")

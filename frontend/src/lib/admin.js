@@ -69,7 +69,7 @@ export function Topbar({ user, active = "", children }) {
     </a>
   );
   return (
-    <header className="border-b border-rose-100 bg-white px-5 py-4">
+    <header className="no-print border-b border-rose-100 bg-white px-5 py-4">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
         <a href="/admin" data-testid="admin-topbar-home" className="flex items-center gap-3">
           <img src="/sv-logo.png" alt="S V logo" className="h-12 w-12 rounded-full object-cover ring-1 ring-rose-100" />
