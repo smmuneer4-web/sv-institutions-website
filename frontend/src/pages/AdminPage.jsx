@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Search, X, MessageCircle, Mail, Trash2, RefreshCw, ExternalLink, ChevronRight } from "lucide-react";
+import { LogOut, Search, X, MessageCircle, Mail, Trash2, RefreshCw, ExternalLink, ChevronRight, Check } from "lucide-react";
 import { api, formatApiError, saveAuth, clearAuth } from "../lib/api";
+import { inr, collected } from "../lib/admin";
 import { useLenisStop } from "../lib/scroll";
 
 const STATUSES = ["submitted", "shortlist", "approved", "rejected"];
@@ -226,6 +227,52 @@ function EnquiryDeleteButton({ id, onDeleted }) {
     >
       <Trash2 className="h-4 w-4" />
     </button>
+  );
+}
+
+function PaymentCell({ app: a, onUpdated }) {
+  const [amount, setAmount] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  return (
+    <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+      <input
+        data-testid={`payment-amount-input-${a.application_number}`}
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        placeholder="Rs"
+        inputMode="numeric"
+        className="w-20 rounded-lg border border-rose-100 bg-[#FFFDFB] px-2.5 py-1.5 text-right text-xs font-semibold outline-none transition-all focus:border-[#BE185D]"
+      />
+      <button
+        data-testid={`payment-submit-button-${a.application_number}`}
+        disabled={busy}
+        onClick={async () => {
+          setErr("");
+          const amt = Number(amount);
+          if (!amt || amt <= 0) {
+            setErr("Enter an amount");
+            return;
+          }
+          setBusy(true);
+          try {
+            const { data } = await api.post(`/applications/${a.id}/payments`, { amount: amt });
+            setAmount("");
+            onUpdated(data);
+          } catch (e) {
+            setErr(formatApiError(e));
+          } finally {
+            setBusy(false);
+          }
+        }}
+        aria-label={`Record payment for ${a.full_name}`}
+        title="Record this payment"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#BE185D] text-white transition-all hover:bg-[#9F1239] disabled:opacity-50"
+      >
+        {busy ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Check className="h-3.5 w-3.5" />}
+      </button>
+      {err && <span data-testid={`payment-error-${a.application_number}`} className="mt-1 text-[10px] font-bold text-[#9F1239]">{err}</span>}
+    </div>
   );
 }
 
@@ -513,7 +560,7 @@ export default function AdminPage() {
                 <p data-testid="admin-table-count" className="text-xs font-semibold text-slate-400">{filtered.length} of {apps.length}</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
+                <table className="w-full min-w-[1050px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-rose-100 bg-rose-50/40 text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
                       <th className="px-6 py-4">Application ID</th>
@@ -521,6 +568,8 @@ export default function AdminPage() {
                       <th className="px-6 py-4">Programme</th>
                       <th className="px-6 py-4">Contact</th>
                       <th className="px-6 py-4">Submitted</th>
+                      <th className="px-6 py-4">Amount</th>
+                      <th className="px-6 py-4">Record Payment</th>
                       <th className="px-6 py-4">Status</th>
                       <th className="px-6 py-4" />
                     </tr>
@@ -556,6 +605,15 @@ export default function AdminPage() {
                         </td>
                         <td className="px-6 py-4 text-slate-600">{fmtDate(a.created_at)}</td>
                         <td className="px-6 py-4">
+                          <span data-testid={`application-amount-${a.application_number}`} className="font-semibold text-emerald-700">
+                            {inr(collected(a))}
+                          </span>
+                          <span className="block text-[10px] text-slate-400">of {inr(a.fee_total)} plan</span>
+                        </td>
+                        <td className="relative px-4 py-4">
+                          <PaymentCell app={a} onUpdated={(updated) => setApps((list) => list.map((x) => (x.id === updated.id ? updated : x)))} />
+                        </td>
+                        <td className="px-6 py-4">
                           <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${STATUS_STYLE[a.status] || "bg-slate-100 text-slate-600"}`}>
                             {STATUS_LABEL[a.status] || a.status}
                           </span>
@@ -567,7 +625,7 @@ export default function AdminPage() {
                     ))}
                     {filtered.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-16 text-center text-sm text-slate-400">
+                        <td colSpan={9} className="px-6 py-16 text-center text-sm text-slate-400">
                           No applications yet.
                           <span className="block">Applications will appear here as students apply.</span>
                         </td>
