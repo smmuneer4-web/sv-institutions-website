@@ -18,6 +18,7 @@ import AdminPage from "./pages/AdminPage";
 import StudentsPage from "./pages/StudentsPage";
 import StudentDetailPage from "./pages/StudentDetailPage";
 import CollegesManager from "./pages/CollegesManager";
+import ContentPage from "./pages/ContentPage";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -94,6 +95,7 @@ function App() {
             <Route path="/apply" element={<ApplyPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/admin/colleges" element={<CollegesManager />} />
+            <Route path="/admin/content" element={<ContentPage />} />
             <Route path="/admin/students" element={<StudentsPage />} />
             <Route path="/admin/students/:ref" element={<StudentDetailPage />} />
           </Routes>

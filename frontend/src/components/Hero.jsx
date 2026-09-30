@@ -3,9 +3,7 @@ import { motion, useScroll, useTransform, useSpring, useMotionValue } from "fram
 import { ArrowUpRight, Plus } from "lucide-react";
 import { scrollToId } from "../lib/scroll";
 import EnquiryModal from "../components/EnquiryModal";
-
-const HERO_IMG =
-  "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?q=80&w=1600&auto=format&fit=crop";
+import { useContent } from "../lib/content";
 
 const line = (i) => ({
   initial: { y: "115%" },
@@ -21,6 +19,8 @@ const fade = (d) => ({
 
 export default function Hero() {
   const [enquiryOpen, setEnquiryOpen] = useState(false);
+  const content = useContent();
+  const hero = content.hero;
   const imgRef = useRef(null);
   const sectionRef = useRef(null);
   const rotX = useSpring(useMotionValue(0), { stiffness: 120, damping: 18 });
@@ -65,23 +65,17 @@ export default function Hero() {
           </motion.p>
 
           <h1 className="hero-title mt-5 font-display font-semibold text-[#22090F]">
-            {[
-              <span key="l1" className="block">A Culture of</span>,
-              <span key="l2" className="block italic text-[#BE185D]">Excellence</span>,
-              <span key="l3" className="block">in Learning</span>,
-            ].map((child, i) => (
+            {hero.headline_lines.map((l, i) => (
               <span key={i} className="block overflow-hidden pb-1">
                 <motion.span {...line(i)} className="block">
-                  {child}
+                  <span className={`block ${i === 1 ? "italic text-[#BE185D]" : ""}`}>{l}</span>
                 </motion.span>
               </span>
             ))}
           </h1>
 
           <motion.p {...fade(0.65)} className="mt-7 max-w-lg text-base leading-relaxed text-slate-600 sm:text-lg">
-            S V College of Nursing is renowned across India for its excellence in nursing education —
-            affiliated to Rajiv Gandhi University of Health Sciences and recognised by the Indian Nursing
-            Council &amp; Karnataka State Nursing Council.
+            {hero.sub}
           </motion.p>
 
           <motion.div {...fade(0.8)} className="mt-9 flex flex-wrap items-center gap-4">
@@ -103,11 +97,7 @@ export default function Hero() {
           </motion.div>
 
           <motion.div {...fade(0.95)} className="mt-12 flex flex-wrap gap-10 border-t border-rose-100 pt-8">
-            {[
-              { n: "135", l: "Sanctioned Seats" },
-              { n: "03", l: "Nursing Programs" },
-              { n: "02", l: "Institutions" },
-            ].map((s) => (
+            {hero.stats.map((s) => (
               <div key={s.l}>
                 <p className="font-display text-4xl font-semibold text-[#BE185D]">
                   {s.n}
@@ -137,15 +127,16 @@ export default function Hero() {
             >
               <video
                 data-testid="hero-video"
-                poster={HERO_IMG}
+                poster={hero.poster_url}
                 autoPlay
                 muted
                 loop
                 playsInline
                 className="h-[30rem] w-full object-cover sm:h-[34rem]"
               >
-                <source src="/hero.mp4" type="video/mp4" />
-                <source src="/hero.webm" type="video/webm" />
+                {[...new Set([hero.video_url, "/hero.mp4", "/hero.webm"])].map((src) => (
+                  <source key={src} src={src} type={src.endsWith(".webm") ? "video/webm" : "video/mp4"} />
+                ))}
               </video>
               <div className="absolute inset-0 bg-gradient-to-t from-[#6E0A28]/35 via-transparent to-transparent" />
             </motion.div>

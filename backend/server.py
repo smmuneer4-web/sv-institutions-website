@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from bson import ObjectId
 from pymongo import ReturnDocument
 from datetime import datetime, timezone, timedelta
+import base64
+import json
 from io import BytesIO
 from reportlab.lib.pagesizes import A4, A5, landscape
 from reportlab.lib.colors import HexColor, white
@@ -355,7 +357,7 @@ async def _ensure_receipt_no(application_id: str, doc: dict, payment: dict) -> s
     return receipt_no
 
 
-def _build_receipt_pdf(app_doc: dict, payment: dict, receipt_no: str, generated_at: str) -> bytes:
+def _build_receipt_pdf(app_doc: dict, payment: dict, receipt_no: str, generated_at: str, contact: dict | None = None) -> bytes:
     # A5 landscape, gold double-frame template
     W, H = landscape(A5)
     CX = 34
@@ -364,6 +366,10 @@ def _build_receipt_pdf(app_doc: dict, payment: dict, receipt_no: str, generated_
     GREY, LINE = HexColor(0x6B7280), HexColor(0xE5E7EB)
     CREAM, PAGEBG = HexColor(0xFBF3E6), HexColor(0xF5EBDC)
     GOLD = HexColor(0xC9A66B)
+    BRAND_NAME = (contact or {}).get("name") or INSTITUTE_NAME
+    BRAND_TAGLINE = (contact or {}).get("tagline") or INSTITUTE_TAGLINE
+    BRAND_EMAIL = (contact or {}).get("email") or INSTITUTE_EMAIL
+    BRAND_PHONE = (contact or {}).get("phone") or INSTITUTE_PHONE
 
     buf = BytesIO()
     c = pdf_canvas.Canvas(buf, pagesize=(W, H))
@@ -392,12 +398,12 @@ def _build_receipt_pdf(app_doc: dict, payment: dict, receipt_no: str, generated_
     tx = CX + 64
     c.setFillColor(MAROON)
     c.setFont("Helvetica-Bold", 15.5)
-    c.drawString(tx, H - 52, INSTITUTE_NAME)
+    c.drawString(tx, H - 52, BRAND_NAME)
     c.setFont("Helvetica-Oblique", 8.5)
-    c.drawString(tx, H - 65, INSTITUTE_TAGLINE)
+    c.drawString(tx, H - 65, BRAND_TAGLINE)
     c.setFillColor(GREY)
     c.setFont("Helvetica", 7.5)
-    c.drawString(tx, H - 77, f"{INSTITUTE_EMAIL} · {INSTITUTE_PHONE}")
+    c.drawString(tx, H - 77, f"{BRAND_EMAIL} · {BRAND_PHONE}")
 
     # Banner row: maroon title band left, receipt no + date right
     by = H - 118
@@ -997,7 +1003,8 @@ async def download_receipt(application_id: str, payment_id: str, user: dict = De
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
     receipt_no = await _ensure_receipt_no(application_id, doc, payment)
-    pdf = _build_receipt_pdf(doc, payment, receipt_no, _generated_stamp())
+    content = await get_site_content()
+    pdf = _build_receipt_pdf(doc, payment, receipt_no, _generated_stamp(), contact=content.get("contact"))
     return Response(
         content=pdf,
         media_type="application/pdf",
@@ -1353,14 +1360,313 @@ async def admin_stats(user: dict = Depends(get_current_user)):
     }
 
 
+# ---------------- Media library (admin-uploaded photos/videos) ----------------
+
+MAX_MEDIA_BYTES = 9 * 1024 * 1024  # ~9MB decoded
+
+
+class MediaUpload(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str = ""
+    mime: str = ""
+    data: str  # base64 (optionally a data: URL)
+
+
+@api_router.post("/admin/media")
+async def upload_media(input: MediaUpload, user: dict = Depends(get_current_user)):
+    payload = input.data.split(",", 1)[1] if input.data.startswith("data:") else input.data
+    try:
+        binary = base64.b64decode(payload, validate=True)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Invalid file data")
+    if len(binary) > MAX_MEDIA_BYTES:
+        raise HTTPException(status_code=422, detail="File too large — photos up to 5 MB and videos up to 8 MB please")
+    mime = (input.mime or "application/octet-stream").split(";")[0].strip()
+    doc = {
+        "name": input.name or "upload",
+        "mime": mime,
+        "size": len(binary),
+        "data": base64.b64encode(binary).decode(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    result = await db.media.insert_one(doc)
+    return {"id": str(result.inserted_id), "url": f"/api/media/{result.inserted_id}", "size": len(binary), "mime": mime}
+
+
+@api_router.get("/media/{media_id}")
+async def serve_media(media_id: str, request: Request):
+    try:
+        doc = await db.media.find_one({"_id": ObjectId(media_id)})
+    except Exception:
+        raise HTTPException(status_code=404, detail="Media not found")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Media not found")
+    binary = base64.b64decode(doc["data"])
+    range_header = request.headers.get("range")
+    if range_header and range_header.startswith("bytes="):
+        try:
+            start_s, end_s = range_header.split("=", 1)[1].split("-", 1)
+            start = int(start_s)
+            end = int(end_s) if end_s else len(binary) - 1
+            end = min(end, len(binary) - 1)
+            chunk = binary[start : end + 1]
+            return Response(
+                content=chunk,
+                status_code=206,
+                media_type=doc["mime"],
+                headers={
+                    "Content-Range": f"bytes {start}-{end}/{len(binary)}",
+                    "Accept-Ranges": "bytes",
+                    "Cache-Control": "public, max-age=31536000, immutable",
+                },
+            )
+        except (ValueError, IndexError):
+            pass
+    return Response(
+        content=binary,
+        media_type=doc["mime"],
+        headers={"Cache-Control": "public, max-age=31536000, immutable", "Accept-Ranges": "bytes"},
+    )
+
+
+@api_router.delete("/admin/media/{media_id}")
+async def delete_media(media_id: str, user: dict = Depends(get_current_user)):
+    result = await db.media.delete_one({"_id": ObjectId(media_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Media not found")
+    return {"message": "Media deleted"}
+
+
+# ---------------- Editable site content (CMS) ----------------
+
+DEFAULT_CONTENT = {
+    "contact": {
+        "name": "S V GROUP OF INSTITUTIONS",
+        "tagline": "Excellence in Health Education · Bengaluru",
+        "email": "admissions@svinstitutions.co.in",
+        "phone": "+91 90378 34632",
+        "address": "80 Feet Ring Road, Near Bangalore University, Mallathahalli Bus Stop, Bangalore - 560056",
+        "instagram": "svgoiofficial",
+    },
+    "hero": {
+        "headline_lines": ["A Culture of", "Excellence", "in Learning"],
+        "sub": "S V College of Nursing is renowned across India for its excellence in nursing education — affiliated to Rajiv Gandhi University of Health Sciences and recognised by the Indian Nursing Council & Karnataka State Nursing Council.",
+        "video_media_id": None,
+        "poster_media_id": None,
+        "poster_fallback": "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?q=80&w=1600&auto=format&fit=crop",
+        "stats": [
+            {"n": "135", "l": "Sanctioned Seats"},
+            {"n": "03", "l": "Nursing Programs"},
+            {"n": "02", "l": "Institutions"},
+        ],
+    },
+    "gallery": {
+        "photos": [
+            {"id": "g1", "url": "https://images.pexels.com/photos/35645510/pexels-photo-35645510.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", "caption": "Skill lab — supervised phlebotomy practice", "tag": "Labs"},
+            {"id": "g2", "url": "https://images.unsplash.com/photo-1517120026326-d87759a7b63b?q=80&w=1200&auto=format&fit=crop", "caption": "Hospital postings — neonatal intensive care", "tag": "Hospital Training"},
+            {"id": "g3", "url": "https://images.unsplash.com/photo-1709805619372-40de3f158e83?q=80&w=1200&auto=format&fit=crop", "caption": "Campus hostel accommodation", "tag": "Hostels"},
+            {"id": "g4", "url": "https://images.pexels.com/photos/35645506/pexels-photo-35645506.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", "caption": "Clinical procedures under faculty supervision", "tag": "Labs"},
+            {"id": "g5", "url": "https://images.unsplash.com/photo-1762512346988-045f4d5ad2b3?q=80&w=1200&auto=format&fit=crop", "caption": "Digital health library & study hall", "tag": "Library"},
+            {"id": "g6", "url": "https://images.unsplash.com/photo-1586534738560-438efdf1d205?q=80&w=1200&auto=format&fit=crop", "caption": "Ward rounds and hands-on hospital exposure", "tag": "Hospital Training"},
+        ],
+    },
+    "facilities": {
+        "hostel_url": "https://images.unsplash.com/photo-1769147555720-71fc71bfc216?q=80&w=1600&auto=format&fit=crop",
+        "hostel_media_id": None,
+    },
+}
+
+
+def _media_url(media_id: str | None, fallback: str | None) -> str | None:
+    if media_id:
+        return f"/api/media/{media_id}"
+    return fallback
+
+
+class ContentUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    contact: Optional[Dict[str, Any]] = None
+    hero: Optional[Dict[str, Any]] = None
+    gallery: Optional[Dict[str, Any]] = None
+    facilities: Optional[Dict[str, Any]] = None
+
+
+async def get_site_content() -> dict:
+    doc = await db.site_content.find_one({"_id": "site"})
+    base = json.loads(json.dumps(DEFAULT_CONTENT))  # deep copy
+    if doc:
+        for section in ("contact", "hero", "gallery", "facilities"):
+            if isinstance(doc.get(section), dict):
+                base[section].update(doc[section])
+    hero = base["hero"]
+    hero["video_url"] = _media_url(hero.get("video_media_id"), "/hero.mp4")
+    hero["poster_url"] = _media_url(hero.get("poster_media_id"), hero.get("poster_fallback"))
+    facilities = base["facilities"]
+    facilities["hostel_img"] = _media_url(facilities.get("hostel_media_id"), facilities.get("hostel_url"))
+    for photo in base["gallery"].get("photos", []):
+        photo["img"] = _media_url(photo.get("media_id"), photo.get("url"))
+    return base
+
+
+@api_router.get("/content")
+async def read_content():
+    return await get_site_content()
+
+
+@api_router.put("/admin/content")
+async def write_content(input: ContentUpdate, user: dict = Depends(get_current_user)):
+    updates = {}
+    for section in ("contact", "hero", "gallery", "facilities"):
+        value = getattr(input, section)
+        if value is not None:
+            if not isinstance(value, dict):
+                raise HTTPException(status_code=422, detail=f"Invalid {section} payload")
+            updates[section] = value
+    if not updates:
+        raise HTTPException(status_code=422, detail="Nothing to update")
+    await db.site_content.update_one({"_id": "site"}, {"$set": updates}, upsert=True)
+    return await get_site_content()
+
+
+# ---------------- Instagram live feed (Business Discovery, server-side token) ----------------
+
+IG_POST_FIELDS = "id,media_url,thumbnail_url,caption,permalink,timestamp,media_type"
+
+
+def _ig_graph_get(url: str, params: dict) -> dict:
+    import httpx
+    r = httpx.get(url, params=params, timeout=15)
+    return r
+
+
+def _parse_ig_media(payload: dict) -> list:
+    media = (payload.get("business_discovery") or {}).get("media") or {}
+    posts = []
+    for p in (media.get("data") or [])[:12]:
+        if not p.get("permalink"):
+            continue
+        posts.append({
+            "id": p.get("id"),
+            "image": p.get("thumbnail_url") or p.get("media_url") or "",
+            "caption": (p.get("caption") or "")[:220],
+            "permalink": p.get("permalink"),
+            "timestamp": p.get("timestamp") or "",
+            "media_type": p.get("media_type") or "IMAGE",
+        })
+    return posts
+
+
+def _sync_fetch_instagram(token: str, username: str) -> list:
+    fields = f"business_discovery.username({username}){{media.limit(12){{{IG_POST_FIELDS}}}}}"
+    # Route 1: Instagram Login token (graph.instagram.com/me)
+    r = _ig_graph_get("https://graph.instagram.com/me", {"fields": fields, "access_token": token})
+    if r.status_code == 200:
+        return _parse_ig_media(r.json())
+    # Route 2: Facebook Login token — find the connected IG business account, then discover
+    r2 = _ig_graph_get("https://graph.facebook.com/v21.0/me/accounts", {"fields": "id,name,instagram_business_account{id,username}", "access_token": token})
+    if r2.status_code == 200:
+        for page in (r2.json().get("data") or []):
+            ig = (page.get("instagram_business_account") or {})
+            ig_id = ig.get("id")
+            if ig_id:
+                r3 = _ig_graph_get(f"https://graph.facebook.com/v21.0/{ig_id}", {"fields": fields, "access_token": token})
+                if r3.status_code == 200:
+                    return _parse_ig_media(r3.json())
+    detail = "Could not fetch the Instagram feed. Check the token, account type (must be Business/Creator) and page linkage."
+    raise HTTPException(status_code=502, detail=detail)
+
+
+class InstagramSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    token: str
+    username: str = "svgoiofficial"
+    app_id: str = ""
+    app_secret: str = ""
+
+
+def _exchange_to_long_lived(token: str, app_id: str, app_secret: str) -> str:
+    r = _ig_graph_get(
+        "https://graph.facebook.com/v21.0/oauth/access_token",
+        {"client_id": app_id, "client_secret": app_secret, "grant_type": "fb_exchange_token", "fb_exchange_token": token},
+    )
+    if r.status_code == 200 and r.json().get("access_token"):
+        return r.json()["access_token"]
+    return token  # fall back to the pasted token if the exchange is rejected
+
+
+@api_router.post("/admin/instagram")
+async def connect_instagram(input: InstagramSettings, user: dict = Depends(get_current_user)):
+    username = input.username.strip().lstrip("@")
+    if not input.token.strip():
+        raise HTTPException(status_code=422, detail="Access token is required")
+    token = input.token.strip()
+    if input.app_id.strip() and input.app_secret.strip():
+        token = _exchange_to_long_lived(token, input.app_id.strip(), input.app_secret.strip())
+    import asyncio
+    loop = asyncio.get_event_loop()
+    try:
+        posts = await loop.run_in_executor(None, _sync_fetch_instagram, token, username)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="Could not reach Instagram. Please try again.")
+    await db.instagram.update_one(
+        {"_id": "ig"},
+        {"$set": {"token": token, "username": username, "last_sync": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    for p in posts:
+        await db.ig_posts.update_one({"id": p["id"]}, {"$set": p}, upsert=True)
+    return {"connected": True, "username": username, "posts": len(posts)}
+
+
+@api_router.get("/instagram/posts")
+async def instagram_posts_public():
+    """Cached live posts — refreshed lazily (max every 15 min) when a token is connected."""
+    settings = await db.instagram.find_one({"_id": "ig"})
+    if settings and settings.get("token"):
+        last = settings.get("last_sync")
+        stale = True
+        try:
+            if last:
+                stale = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() > 900
+        except (ValueError, TypeError):
+            stale = True
+        if stale:
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                posts = await loop.run_in_executor(None, _sync_fetch_instagram, settings["token"], settings.get("username", "svgoiofficial"))
+                for p in posts:
+                    await db.ig_posts.update_one({"id": p["id"]}, {"$set": p}, upsert=True)
+                await db.instagram.update_one({"_id": "ig"}, {"$set": {"last_sync": datetime.now(timezone.utc).isoformat()}})
+            except Exception:
+                pass  # serve cache on any Meta hiccup
+    docs = await db.ig_posts.find({}).sort("timestamp", -1).to_list(12)
+    for d in docs:
+        d.pop("_id", None)
+    return {"connected": bool(settings and settings.get("token")), "posts": docs}
+
+
+@api_router.delete("/admin/instagram")
+async def disconnect_instagram(user: dict = Depends(get_current_user)):
+    await db.instagram.delete_one({"_id": "ig"})
+    return {"connected": False}
+
+
 # ---------------- Application PDF (branded, admin + public copy) ----------------
 
-def _build_application_pdf(app_doc: dict, generated_at: str) -> bytes:
+def _build_application_pdf(app_doc: dict, generated_at: str, contact: dict | None = None) -> bytes:
     W, H = A4
     M = 46
     MAROON, INK = HexColor(0x6E0A28), HexColor(0x22090F)
     GREY, LINE = HexColor(0x6B7280), HexColor(0xE5E7EB)
     FOOTBG = HexColor(0xF3F4F6)
+    BRAND_NAME = (contact or {}).get("name") or INSTITUTE_NAME
+    BRAND_TAGLINE = (contact or {}).get("tagline") or INSTITUTE_TAGLINE
+    BRAND_ADDRESS = (contact or {}).get("address") or INSTITUTE_ADDRESS
+    BRAND_EMAIL = (contact or {}).get("email") or INSTITUTE_EMAIL
+    BRAND_PHONE = (contact or {}).get("phone") or INSTITUTE_PHONE
 
     buf = BytesIO()
     c = pdf_canvas.Canvas(buf, pagesize=A4)
@@ -1370,15 +1676,15 @@ def _build_application_pdf(app_doc: dict, generated_at: str) -> bytes:
             c.drawImage(str(LOGO_PATH), M, H - 112, width=62, height=62, mask="auto", preserveAspectRatio=True)
         c.setFillColor(INK)
         c.setFont("Helvetica-Bold", 17)
-        c.drawString(M + 76, H - 68, INSTITUTE_NAME)
+        c.drawString(M + 76, H - 68, BRAND_NAME)
         c.setFillColor(GREY)
         c.setFont("Helvetica", 9)
-        c.drawString(M + 76, H - 83, INSTITUTE_TAGLINE)
+        c.drawString(M + 76, H - 83, BRAND_TAGLINE)
         c.setFont("Helvetica", 8)
-        c.drawString(M + 76, H - 96, INSTITUTE_ADDRESS)
+        c.drawString(M + 76, H - 96, BRAND_ADDRESS)
         c.setFont("Helvetica", 9)
-        c.drawRightString(W - M, H - 68, INSTITUTE_EMAIL)
-        c.drawRightString(W - M, H - 81, INSTITUTE_PHONE)
+        c.drawRightString(W - M, H - 68, BRAND_EMAIL)
+        c.drawRightString(W - M, H - 81, BRAND_PHONE)
         c.setFillColor(MAROON)
         c.rect(0, H - 150, W, 38, stroke=0, fill=1)
         c.setFillColor(white)
@@ -1526,7 +1832,8 @@ async def download_application_copy(application_number_copy: str):
     doc = await db.applications.find_one({"application_number": application_number.upper()})
     if not doc:
         raise HTTPException(status_code=404, detail="Application not found")
-    pdf = _build_application_pdf(doc, _generated_stamp())
+    content = await get_site_content()
+    pdf = _build_application_pdf(doc, _generated_stamp(), contact=content.get("contact"))
     return Response(
         content=pdf,
         media_type="application/pdf",
@@ -1539,7 +1846,8 @@ async def download_application_pdf(application_id: str, user: dict = Depends(get
     doc = await db.applications.find_one({"_id": application_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Application not found")
-    pdf = _build_application_pdf(doc, _generated_stamp())
+    content = await get_site_content()
+    pdf = _build_application_pdf(doc, _generated_stamp(), contact=content.get("contact"))
     return Response(
         content=pdf,
         media_type="application/pdf",

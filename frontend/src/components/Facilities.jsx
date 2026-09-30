@@ -1,8 +1,6 @@
 import { Building2, BookOpen, FlaskConical, BedDouble, Bus, Stethoscope } from "lucide-react";
 import { Reveal, SectionHead } from "../components/Reveal";
-
-const HOSTEL_IMG =
-  "https://images.unsplash.com/photo-1769147555720-71fc71bfc216?q=80&w=1600&auto=format&fit=crop";
+import { useContent } from "../lib/content";
 
 const ImageTile = ({ src, title, text, testid, className = "" }) => (
   <div
@@ -54,8 +52,9 @@ const TextTile = ({ icon: Icon, title, text, testid, className = "" }) => (
 );
 
 export default function Facilities() {
+  const content = useContent();
   return (
-    <section id="facilities" className="py-24 lg:py-32">
+    <section id="facilities" className="py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-5 lg:px-10">
         <SectionHead
           eyebrow="Campus & Facilities"
@@ -109,7 +108,7 @@ export default function Facilities() {
           <Reveal delay={0.12} className="lg:col-span-2">
             <ImageTile
               testid="facility-tile-hostels"
-              src={HOSTEL_IMG}
+              src={content.facilities.hostel_img}
               title="Safe Campus Hostels"
               text="Separate secure residential facilities for female and male students with 24/7 security."
               className="h-72 lg:h-full"

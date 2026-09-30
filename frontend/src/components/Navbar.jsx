@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Menu, X, ArrowUpRight } from "lucide-react";
 import { scrollToId, useLenisStop } from "../lib/scroll";
+import { useContent } from "../lib/content";
 
 const LINKS = [
   { label: "About", id: "#about" },
@@ -17,6 +18,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   useLenisStop(open);
   const navigate = useNavigate();
+  const content = useContent();
   const go = (id) => {
     setOpen(false);
     setTimeout(() => scrollToId(id), open ? 80 : 0);
@@ -43,7 +45,7 @@ export default function Navbar() {
             />
             <span className="text-left leading-tight">
               <span className="block font-display text-2xl font-semibold tracking-tight text-[#22090F]">
-                S V GROUP OF INSTITUTIONS
+                {content.contact.name}
               </span>
             </span>
           </button>
