@@ -63,6 +63,9 @@ Build a landing page for S V College of Nursing (https://littleflowerinstitution
 - Instagram tab instructions rewritten for the Instagram Login flow (API setup with Instagram Login → Generate token = already long-lived; or Graph API Explorer + App Secret auto-exchange); labels clarify App Secret (Instagram apps) vs App ID (Facebook tokens)
 - Verified: garbage token → clean 502 JSON with guidance (preview proxy WAF may wrap it in HTML — production Render unaffected); token never leaks via public endpoints
 
+## Implemented (2026-10-01, session 7 — "updated video not showing" RCA + fix)
+- User reported the uploaded hero video not showing on the website. RCA (testing agent, iteration_4): (1) preview was fully correct — 8MB upload 'SV Institutions_VideoFull (1).mp4' (id 6abeaf20f932fc8791fc8c56, H.264+AAC) stored, served (200 video/mp4), first <source> on the landing video, plays with webm fallback in headless; 8MB uploads pass the preview proxy fine. (2) REAL BUG (HIGH): ContentPage stale-draft — useContent started from DEFAULT_CONTENT and the `content && !draft` guard never re-synced when the real content arrived → Hero tab showed 'Default stock video' + no Reset button after refresh, making the user think the upload was lost. FIXED with useContentStrict (admin pages wait for server truth; loading state while fetching). (3) The live Vercel site predates the video-hero code AND the live DB is separate — user must Deploy + re-upload the video on the live admin panel.
+
 ## Backlog / Next
 - P1: Email notification (Resend) to admissions on new application/enquiry.
 - P2: WhatsApp Business automation (user deferred) — auto-send reminders instead of manual link.

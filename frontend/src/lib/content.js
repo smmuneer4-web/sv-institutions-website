@@ -82,6 +82,21 @@ export const useContent = () => {
   return content;
 };
 
+export const useContentStrict = () => {
+  const [content, setContent] = useState(cache);
+
+  useEffect(() => {
+    const cb = (data) => {
+      if (data) setContent(data);
+    };
+    subscribers.add(cb);
+    if (!cache) fetchOnce();
+    return () => subscribers.delete(cb);
+  }, []);
+
+  return content; // null until the real content arrives (admin pages: always show server truth)
+};
+
 export const uploadMedia = async (file) => {
   const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();

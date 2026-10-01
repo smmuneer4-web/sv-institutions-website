@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAdminAuth, Topbar } from "../lib/admin";
-import { useContent, refetchContent, uploadMedia } from "../lib/content";
+import { useContentStrict, refetchContent, uploadMedia } from "../lib/content";
 import FileUpload from "../components/FileUpload";
 import { api, formatApiError } from "../lib/api";
 import {
@@ -175,7 +175,7 @@ const InstagramTab = ({ content }) => {
 
 export default function ContentPage() {
   const [user] = useAdminAuth();
-  const content = useContent();
+  const content = useContentStrict();
   const [tab, setTab] = useState("details");
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -189,7 +189,7 @@ export default function ContentPage() {
     if (content && !draft) setDraft(JSON.parse(JSON.stringify(content)));
   }, [content]);
 
-  if (user === null) {
+  if (user === null || !content) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F8F5F2]">
         <p className="animate-pulse font-display text-2xl text-[#9F1239]">Loading console…</p>
@@ -197,7 +197,6 @@ export default function ContentPage() {
     );
   }
   if (!user) return <Navigate to="/admin" replace />;
-  if (!draft) return <div className="min-h-screen bg-[#F8F5F2]" />;
 
   const save = async (section, payload) => {
     setBusy(true);
