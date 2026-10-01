@@ -68,29 +68,31 @@ export function useApplications(user) {
   return { apps, load, loading, error, setError };
 }
 
+import { Link } from "react-router-dom";
+
 export function Topbar({ user, active = "", children }) {
   const link = (href, label, key) => (
-    <a
+    <Link
       key={key}
-      href={href}
+      to={href}
       data-testid={`admin-nav-${key}`}
       className={`rounded-full px-4 py-2 text-xs font-bold transition-all ${
         active === key ? "bg-[#BE185D] text-white shadow-md shadow-rose-200" : "text-slate-500 hover:text-[#BE185D]"
       }`}
     >
       {label}
-    </a>
+    </Link>
   );
   return (
     <header className="no-print border-b border-rose-100 bg-white px-5 py-4">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
-        <a href="/admin" data-testid="admin-topbar-home" className="flex items-center gap-3">
+        <Link to="/admin" data-testid="admin-topbar-home" className="flex items-center gap-3">
           <img src="/sv-logo.png" alt="S V logo" className="h-12 w-12 rounded-full object-cover ring-1 ring-rose-100" />
           <div>
             <p className="font-display text-xl font-semibold leading-tight text-[#22090F]">Admissions Console</p>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-700">S V Group of Institutions, Bengaluru</p>
           </div>
-        </a>
+        </Link>
         <div className="flex items-center gap-2">
           {link("/admin", "Overview", "overview")}
           {link("/admin/students", "Students & Fees", "students")}

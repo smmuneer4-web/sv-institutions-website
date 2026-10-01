@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Search, X, MessageCircle, Mail, Trash2, RefreshCw, ExternalLink, ChevronRight, Check, AlertTriangle } from "lucide-react";
-import { api, formatApiError, saveAuth, clearAuth } from "../lib/api";
-import { inr, collected, overdueFor, overdueTotal } from "../lib/admin";
+import { Search, X, MessageCircle, Mail, Trash2, RefreshCw, ExternalLink, ChevronRight, Check, AlertTriangle } from "lucide-react";
+import { api, formatApiError, saveAuth } from "../lib/api";
+import { Topbar, inr, collected, overdueFor, overdueTotal } from "../lib/admin";
 import { StatusDonut, CollegeBar, RevenueArea } from "../components/DashboardCharts";
 import { useLenisStop } from "../lib/scroll";
 
@@ -406,39 +406,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F5F2]">
-      <header className="border-b border-rose-100 bg-white px-5 py-4">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <img src="/sv-logo.png" alt="S V logo" className="h-12 w-12 rounded-full object-cover ring-1 ring-rose-100" />
-            <div>
-              <p className="font-display text-xl font-semibold leading-tight text-[#22090F]">Admissions Console</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-700">S V Group of Institutions, Bengaluru</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden items-center gap-2 rounded-full bg-teal-50 px-4 py-2 text-xs font-bold text-[#0F766E] sm:inline-flex">
-              <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[#0D9488]" /> Admin session · {user.email}
-            </span>
-            <a href="/admin/students" data-testid="admin-students-page-link" className="hidden text-xs font-bold text-slate-500 hover:text-[#BE185D] sm:inline">
-              Students &amp; Fees
-            </a>
-            <a href="/" data-testid="admin-back-to-site-link" className="hidden text-xs font-bold text-slate-500 hover:text-[#BE185D] sm:inline">
-              View Website
-            </a>
-            <button
-              data-testid="admin-logout-button"
-              onClick={async () => {
-                await api.post("/auth/logout").catch(() => {});
-                clearAuth();
-                setUser(false);
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-rose-200 px-5 py-2.5 text-xs font-bold text-[#9F1239] transition-colors hover:bg-rose-50"
-            >
-              <LogOut className="h-3.5 w-3.5" /> Sign out
-            </button>
-          </div>
-        </div>
-      </header>
+      <Topbar user={user} active="overview" />
 
       <main className="mx-auto max-w-7xl px-5 py-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
