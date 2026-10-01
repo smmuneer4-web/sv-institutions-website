@@ -1,0 +1,23 @@
+{
+  "summary": "Verified Hero.jsx video-remount fix (<video key={hero.video_url}>). Fresh load on preview URL: source[0] = /api/media/6abed24ce3c1d38a2ac02221 (user's newest upload 'SV Institutions_VideoFull.mp4'), window.__marker survived (no reload), sources deduped to 3 (user mp4, /hero.mp4, /hero.webm). Video actively playing: currentTime advanced 0 -> 1.21s, paused=false. Admin login OK (200), content PUT swap -> 200 (6abeae76...), restore PUT -> 200 (6abed24c...), final GET /api/content confirms video_media_id='6abed24ce3c1d38a2ac02221' (state preserved as required). Regression at 1440 + 390: no horizontal overflow, hero badge/CTAs/stats(3)/scroll-cue all present. /apply renders. /admin renders dashboard. Zero JS pageerrors, zero non-media console errors.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_7.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "content.js uses a module-level `cache` with no exported way to force-refresh from outside ContentPage. If any non-admin UI mutates content, the home useContent() will keep stale data until a hard refresh. Low priority — admin ContentPage already calls refetchContent() on save.",
+    "In headless Chromium, /api/media mp4 fails H.264 decode and the browser falls back to /hero.webm. In production browsers the user's uploaded mp4 will decode natively — behaviour verified by readyState progression and currentTime advancing in test."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "admissions@svinstitutions.co.in / SvAdmin@2025 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Did not create or delete any media. site_content.hero.video_media_id restored to '6abed24ce3c1d38a2ac02221' at end of run (verified via GET /api/content).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The <video key={hero.video_url}> fix in Hero.jsx is working as intended: when useContent transitions from DEFAULT_CONTENT (/hero.mp4) to real content (/api/media/<id>), the key change forces React to unmount+remount the <video>, re-evaluating <source> children per HTML spec. Verified without page reload via window.__marker init-script survival. All 5 user media docs remain intact; current server state video_media_id=6abed24ce3c1d38a2ac02221.",
+  "rca of the issue": "ROOT CAUSE (confirmed by main agent, now verified by this test): HTML <video> element only reads its <source> children once at mount per the spec. Previous Hero.jsx mounted with DEFAULT_CONTENT (/hero.mp4) during the ~200-500ms /api/content in-flight window, then when useContent() returned real content the React re-render only updated the <source src=...> attribute but the already-mounted <video> ignored it. FIX: `key={hero.video_url}` on <video> forces React to unmount+remount whenever video_url changes, which causes a fresh <source> enumeration and the correct uploaded video to load. VERIFICATION: source[0] attribute now points to /api/media/6abed24ce3c1d38a2ac02221, video.paused=false, currentTime advances; no reload (init-script marker preserved)."
+}
