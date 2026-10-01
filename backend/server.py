@@ -1,7 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import logging
@@ -16,6 +16,7 @@ from pymongo import ReturnDocument
 from datetime import datetime, timezone, timedelta
 import base64
 import json
+import re
 from io import BytesIO
 from reportlab.lib.pagesizes import A4, A5, landscape
 from reportlab.lib.colors import HexColor, white
@@ -28,6 +29,8 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+fs_bucket = AsyncIOMotorGridFSBucket(db, bucket_name="media_fs")
+MAX_VIDEO_BYTES = 40 * 1024 * 1024  # 40 MB raw video uploads (GridFS — no BSON doc limit)
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -1380,28 +1383,48 @@ async def upload_media(input: MediaUpload, user: dict = Depends(get_current_user
     except Exception:
         raise HTTPException(status_code=422, detail="Invalid file data")
     if len(binary) > MAX_MEDIA_BYTES:
-        raise HTTPException(status_code=422, detail="File too large — photos up to 5 MB and videos up to 8 MB please")
+        raise HTTPException(status_code=422, detail="File too large — photos up to 5 MB please (videos: use the video upload)")
     mime = (input.mime or "application/octet-stream").split(";")[0].strip()
-    doc = {
-        "name": input.name or "upload",
-        "mime": mime,
-        "size": len(binary),
-        "data": base64.b64encode(binary).decode(),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    result = await db.media.insert_one(doc)
-    return {"id": str(result.inserted_id), "url": f"/api/media/{result.inserted_id}", "size": len(binary), "mime": mime}
+    file_id = await fs_bucket.upload_from_stream(input.name or "upload", binary, metadata={"mime": mime, "size": len(binary)})
+    return {"id": str(file_id), "url": f"/api/media/{file_id}", "size": len(binary), "mime": mime}
+
+
+@api_router.post("/admin/media/raw")
+async def upload_media_raw(request: Request, name: str = "video", mime: str = "video/mp4", user: dict = Depends(get_current_user)):
+    """Large video uploads — raw binary body, stored in GridFS (chunked, no 16MB doc limit)."""
+    binary = await request.body()
+    if len(binary) > MAX_VIDEO_BYTES:
+        raise HTTPException(status_code=422, detail="Video is larger than 40 MB. For longer videos use the YouTube / direct-link option.")
+    if not binary:
+        raise HTTPException(status_code=422, detail="Empty upload")
+    mime = (mime or "video/mp4").split(";")[0].strip()
+    file_id = await fs_bucket.upload_from_stream(name, binary, metadata={"mime": mime, "size": len(binary)})
+    return {"id": str(file_id), "url": f"/api/media/{file_id}", "size": len(binary), "mime": mime}
+
+
+async def _get_media(oid: ObjectId):
+    """GridFS first, legacy base64 collection second."""
+    try:
+        grid_out = await fs_bucket.open_download_stream(oid)
+        data = await grid_out.read()
+        mime = ((grid_out.metadata or {}).get("mime")) or "application/octet-stream"
+        return data, mime
+    except Exception:
+        doc = await db.media.find_one({"_id": oid})
+        if doc:
+            return base64.b64decode(doc["data"]), doc.get("mime", "application/octet-stream")
+        return None, None
 
 
 @api_router.get("/media/{media_id}")
 async def serve_media(media_id: str, request: Request):
     try:
-        doc = await db.media.find_one({"_id": ObjectId(media_id)})
+        oid = ObjectId(media_id)
     except Exception:
         raise HTTPException(status_code=404, detail="Media not found")
-    if not doc:
+    binary, mime = await _get_media(oid)
+    if binary is None:
         raise HTTPException(status_code=404, detail="Media not found")
-    binary = base64.b64decode(doc["data"])
     range_header = request.headers.get("range")
     if range_header and range_header.startswith("bytes="):
         try:
@@ -1413,7 +1436,7 @@ async def serve_media(media_id: str, request: Request):
             return Response(
                 content=chunk,
                 status_code=206,
-                media_type=doc["mime"],
+                media_type=mime,
                 headers={
                     "Content-Range": f"bytes {start}-{end}/{len(binary)}",
                     "Accept-Ranges": "bytes",
@@ -1424,17 +1447,25 @@ async def serve_media(media_id: str, request: Request):
             pass
     return Response(
         content=binary,
-        media_type=doc["mime"],
+        media_type=mime,
         headers={"Cache-Control": "public, max-age=31536000, immutable", "Accept-Ranges": "bytes"},
     )
 
 
 @api_router.delete("/admin/media/{media_id}")
 async def delete_media(media_id: str, user: dict = Depends(get_current_user)):
-    result = await db.media.delete_one({"_id": ObjectId(media_id)})
-    if result.deleted_count == 0:
+    try:
+        oid = ObjectId(media_id)
+    except Exception:
         raise HTTPException(status_code=404, detail="Media not found")
-    return {"message": "Media deleted"}
+    try:
+        await fs_bucket.delete(oid)
+        return {"message": "Media deleted"}
+    except Exception:
+        result = await db.media.delete_one({"_id": oid})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Media not found")
+        return {"message": "Media deleted"}
 
 
 # ---------------- Editable site content (CMS) ----------------
@@ -1451,6 +1482,8 @@ DEFAULT_CONTENT = {
     "hero": {
         "headline_lines": ["A Culture of", "Excellence", "in Learning"],
         "sub": "S V College of Nursing is renowned across India for its excellence in nursing education — affiliated to Rajiv Gandhi University of Health Sciences and recognised by the Indian Nursing Council & Karnataka State Nursing Council.",
+        "video_kind": "upload",
+        "video_link": "",
         "video_media_id": None,
         "poster_media_id": None,
         "poster_fallback": "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?q=80&w=1600&auto=format&fit=crop",
@@ -1477,6 +1510,21 @@ DEFAULT_CONTENT = {
 }
 
 
+def _youtube_embed(link: str) -> str:
+    """Parse a YouTube URL (watch / youtu.be / shorts / embed / raw id) into a cinematic embed URL."""
+    link = (link or "").strip()
+    if not link:
+        return ""
+    m = re.search(r"(?:youtube\.com/(?:watch\?.*v=|embed/|shorts/)|youtu\.be/)([A-Za-z0-9_-]{6,})", link)
+    vid = m.group(1) if m else (link if re.fullmatch(r"[A-Za-z0-9_-]{11}", link) else "")
+    if not vid:
+        return ""
+    return (
+        f"https://www.youtube-nocookie.com/embed/{vid}"
+        "?autoplay=1&mute=1&loop=1&playlist=" + vid + "&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1"
+    )
+
+
 def _media_url(media_id: str | None, fallback: str | None) -> str | None:
     if media_id:
         return f"/api/media/{media_id}"
@@ -1501,6 +1549,10 @@ async def get_site_content() -> dict:
     hero = base["hero"]
     hero["video_url"] = _media_url(hero.get("video_media_id"), "/hero.mp4")
     hero["poster_url"] = _media_url(hero.get("poster_media_id"), hero.get("poster_fallback"))
+    if hero.get("video_kind") == "youtube":
+        hero["video_embed"] = _youtube_embed(hero.get("video_link", ""))
+    else:
+        hero["video_embed"] = ""
     facilities = base["facilities"]
     facilities["hostel_img"] = _media_url(facilities.get("hostel_media_id"), facilities.get("hostel_url"))
     for photo in base["gallery"].get("photos", []):
@@ -1515,16 +1567,17 @@ async def read_content():
 
 @api_router.put("/admin/content")
 async def write_content(input: ContentUpdate, user: dict = Depends(get_current_user)):
-    updates = {}
+    set_fields = {}
     for section in ("contact", "hero", "gallery", "facilities"):
         value = getattr(input, section)
         if value is not None:
             if not isinstance(value, dict):
                 raise HTTPException(status_code=422, detail=f"Invalid {section} payload")
-            updates[section] = value
-    if not updates:
+            for k, v in value.items():
+                set_fields[f"{section}.{k}"] = v  # merge per key — partial saves keep siblings
+    if not set_fields:
         raise HTTPException(status_code=422, detail="Nothing to update")
-    await db.site_content.update_one({"_id": "site"}, {"$set": updates}, upsert=True)
+    await db.site_content.update_one({"_id": "site"}, {"$set": set_fields}, upsert=True)
     return await get_site_content()
 
 

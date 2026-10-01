@@ -17,6 +17,8 @@ export const DEFAULT_CONTENT = {
     poster_media_id: null,
     poster_fallback: "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?q=80&w=1600&auto=format&fit=crop",
     video_fallback: "/hero.mp4",
+    video_kind: "upload",
+    video_link: "",
     video_url: "/hero.mp4",
     poster_url: "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?q=80&w=1600&auto=format&fit=crop",
     stats: [
@@ -105,5 +107,14 @@ export const uploadMedia = async (file) => {
     reader.readAsDataURL(file);
   });
   const { data } = await api.post("/admin/media", { name: file.name, mime: file.type, data: dataUrl });
+  return data;
+};
+
+export const uploadMediaRaw = async (file) => {
+  const { data } = await api.post(
+    `/admin/media/raw?name=${encodeURIComponent(file.name)}&mime=${encodeURIComponent(file.type || "video/mp4")}`,
+    file,
+    { headers: { "Content-Type": "application/octet-stream" }, timeout: 300000 }
+  );
   return data;
 };

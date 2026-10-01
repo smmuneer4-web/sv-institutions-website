@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAdminAuth, Topbar } from "../lib/admin";
-import { useContentStrict, refetchContent, uploadMedia } from "../lib/content";
+import { useContentStrict, refetchContent, uploadMedia, uploadMediaRaw } from "../lib/content";
 import FileUpload from "../components/FileUpload";
 import { api, formatApiError } from "../lib/api";
 import {
@@ -20,8 +20,9 @@ const TABS = [
 const inputCls = "form-input";
 const Label = ({ children }) => <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.1em] text-slate-500">{children}</label>;
 
-const VideoUpload = ({ label, mediaId, fallbackUrl, currentUrl, onUploaded, testid }) => {
+const VideoUpload = ({ label, kind, link, mediaId, currentUrl, onKindChange, onLinkChange, onLinkSave, onUploaded, testid }) => {
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [err, setErr] = useState("");
 
   const pick = async (file) => {
@@ -30,38 +31,101 @@ const VideoUpload = ({ label, mediaId, fallbackUrl, currentUrl, onUploaded, test
       setErr("Please choose an MP4 or WebM video.");
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setErr("Video is larger than 8 MB. Please trim/compress it first.");
+    if (file.size > 40 * 1024 * 1024) {
+      setErr("Video is larger than 40 MB. For longer videos use the YouTube or Video Link option.");
       return;
     }
     setBusy(true);
     setErr("");
+    setProgress(0);
     try {
-      const media = await uploadMedia(file);
+      const media = await uploadMediaRaw(file);
       onUploaded(media.id);
     } catch (e) {
       setErr(formatApiError(e));
     } finally {
       setBusy(false);
+      setProgress(0);
     }
   };
+
+  const kindPill = (k, label) => (
+    <button
+      key={k}
+      type="button"
+      data-testid={`${testid}-kind-${k}`}
+      onClick={() => onKindChange(k)}
+      className={`rounded-full px-4 py-2 text-xs font-bold transition-all ${kind === k ? "bg-[#BE185D] text-white shadow-md shadow-rose-200" : "border border-rose-200 bg-white text-slate-600 hover:border-[#BE185D] hover:text-[#BE185D]"}`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div data-testid={testid}>
       <Label>{label}</Label>
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-rose-100 bg-white p-4">
-        <span className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1.5 text-[11px] font-bold text-[#0F766E]">
-          <Video className="h-3.5 w-3.5" /> {mediaId ? "Custom video set" : "Default stock video"}
-        </span>
-        <label className="cursor-pointer rounded-full bg-[#BE185D] px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#9F1239]">
-          {busy ? <Loader2 className="inline h-3.5 w-3.5 animate-spin" /> : `Choose video (MP4/WebM, max 8 MB)`}
-          <input type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" data-testid={`${testid}-file-input`} onChange={(e) => pick(e.target.files?.[0])} />
-        </label>
-        {currentUrl && <a href={currentUrl} target="_blank" rel="noreferrer" className="text-xs font-bold text-[#BE185D] hover:underline">Preview current</a>}
-        {mediaId && (
-          <button type="button" onClick={() => onUploaded(null)} className="text-xs font-bold text-slate-400 hover:text-[#9F1239]">
-            Reset to default
-          </button>
+      <div className="space-y-4 rounded-2xl border border-rose-100 bg-white p-4">
+        <div className="flex flex-wrap gap-2">
+          {kindPill("upload", "Upload video (up to 40 MB)")}
+          {kindPill("youtube", "YouTube video")}
+          {kindPill("link", "Video link (MP4/WebM)")}
+        </div>
+
+        {kind === "upload" && (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1.5 text-[11px] font-bold text-[#0F766E]">
+              <Video className="h-3.5 w-3.5" /> {mediaId ? "Custom video set" : "Default stock video"}
+            </span>
+            <label className="cursor-pointer rounded-full bg-[#BE185D] px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#9F1239]">
+              {busy ? <Loader2 className="inline h-3.5 w-3.5 animate-spin" /> : "Choose video (MP4/WebM, max 40 MB)"}
+              <input type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" data-testid={`${testid}-file-input`} onChange={(e) => pick(e.target.files?.[0])} />
+            </label>
+            {currentUrl && <a href={currentUrl} target="_blank" rel="noreferrer" className="text-xs font-bold text-[#BE185D] hover:underline">Preview current</a>}
+            {mediaId && (
+              <button type="button" onClick={() => onUploaded(null)} className="text-xs font-bold text-slate-400 hover:text-[#9F1239]">
+                Reset to default
+              </button>
+            )}
+            {progress > 0 && <p className="w-full text-[11px] font-semibold text-[#0F766E]">Uploading… {progress}%</p>}
+          </div>
+        )}
+
+        {kind === "youtube" && (
+          <div>
+            <Label>YouTube URL or video ID</Label>
+            <input
+              data-testid={`${testid}-youtube-input`}
+              className={inputCls}
+              placeholder="https://www.youtube.com/watch?v=… or youtu.be/…"
+              value={link}
+              onChange={(e) => onLinkChange(e.target.value)}
+            />
+            <p className="mt-1.5 text-[11px] text-slate-400">
+              Plays muted, looping and without controls as the hero background. Use an unlisted or public video — HD quality, no size limit.
+            </p>
+            <button data-testid={`${testid}-save-link`} onClick={onLinkSave} className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#0F766E] px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#0D9488]">
+              <Save className="h-3.5 w-3.5" /> Save &amp; Apply
+            </button>
+          </div>
+        )}
+
+        {kind === "link" && (
+          <div>
+            <Label>Direct video URL (MP4 / WebM)</Label>
+            <input
+              data-testid={`${testid}-link-input`}
+              className={inputCls}
+              placeholder="https://example.com/hero-video.mp4"
+              value={link}
+              onChange={(e) => onLinkChange(e.target.value)}
+            />
+            <p className="mt-1.5 text-[11px] text-slate-400">
+              Must be a direct video file link (ends with .mp4 / .webm) that allows embedding — e.g. your own CDN or hosting.
+            </p>
+            <button data-testid={`${testid}-save-link`} onClick={onLinkSave} className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#0F766E] px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#0D9488]">
+              <Save className="h-3.5 w-3.5" /> Save &amp; Apply
+            </button>
+          </div>
         )}
       </div>
       {err && <p className="mt-2 text-[11px] font-semibold text-[#9F1239]">{err}</p>}
@@ -305,9 +369,14 @@ export default function ContentPage() {
                 <VideoUpload
                   label="Hero Video"
                   testid="content-hero-video"
+                  kind={draft.hero.video_kind || "upload"}
+                  link={draft.hero.video_link || ""}
                   mediaId={draft.hero.video_media_id}
                   currentUrl={draft.hero.video_url}
-                  onUploaded={(mediaId) => save("hero", { ...draft.hero, video_media_id: mediaId })}
+                  onKindChange={(k) => save("hero", { ...draft.hero, video_kind: k })}
+                  onLinkChange={(v) => setField("hero", "video_link", v)}
+                  onLinkSave={() => save("hero", { ...draft.hero, video_kind: draft.hero.video_kind || "upload", video_link: draft.hero.video_link || "" })}
+                  onUploaded={(mediaId) => save("hero", { ...draft.hero, video_media_id: mediaId, video_kind: "upload" })}
                 />
               </div>
 

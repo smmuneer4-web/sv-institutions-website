@@ -31,20 +31,31 @@ export default function Hero() {
     <section id="top" ref={sectionRef} className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-[#22090F]">
       {/* Cinematic video layer */}
       <motion.div style={{ scale: videoScale, y: videoY }} className="absolute inset-0" data-testid="hero-video-backdrop">
-        <video
-          key={hero.video_url}
-          data-testid="hero-video"
-          poster={hero.poster_url}
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="h-full w-full object-cover"
-        >
-          {[...new Set([hero.video_url, "/hero.mp4", "/hero.webm"])].filter(Boolean).map((src) => (
-            <source key={src} src={src} type={src.endsWith(".webm") ? "video/webm" : "video/mp4"} />
-          ))}
-        </video>
+        {hero.video_kind === "youtube" && hero.video_embed ? (
+          <iframe
+            data-testid="hero-video-youtube"
+            src={hero.video_embed}
+            title="Hero video"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            referrerPolicy="strict-origin-when-cross-origin"
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[58vw] min-h-full w-[103.5vw] min-w-full -translate-x-1/2 -translate-y-1/2"
+          />
+        ) : (
+          <video
+            key={hero.video_url}
+            data-testid="hero-video"
+            poster={hero.poster_url}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="h-full w-full object-cover"
+          >
+            {[...new Set([hero.video_kind === "link" ? hero.video_link : null, hero.video_url, "/hero.mp4", "/hero.webm"])].filter(Boolean).map((src) => (
+              <source key={src} src={src} type={src.endsWith(".webm") ? "video/webm" : "video/mp4"} />
+            ))}
+          </video>
+        )}
       </motion.div>
 
       {/* Cinematic overlays: readability gradients + vignette + grain */}
