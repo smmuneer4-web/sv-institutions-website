@@ -32,6 +32,7 @@ export default function Hero() {
       {/* Cinematic video layer */}
       <motion.div style={{ scale: videoScale, y: videoY }} className="absolute inset-0" data-testid="hero-video-backdrop">
         <video
+          key={hero.video_url}
           data-testid="hero-video"
           poster={hero.poster_url}
           autoPlay
