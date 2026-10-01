@@ -1,0 +1,23 @@
+{
+  "summary": "End-to-end verification of hero video upgrade (GridFS raw upload + 40MB cap + YouTube/Link modes + partial-PUT merge regression + legacy base64 fallback). Backend: 13/13 pytest pass (test_video_modes.py). Frontend: Hero tab shows all 3 source pills (upload/youtube/link) with Upload active by default; YouTube mode (watch?v / youtu.be / shorts / embed URLs) all resolve to youtube-nocookie.com/embed/dQw4w9WgXcQ with autoplay=1&mute=1&loop=1 — landing renders iframe[data-testid=hero-video-youtube] and CTAs stay on top (overlay z-order correct); Link mode prepends the direct URL as first <source> (order verified: [link, /api/media/<id>, /hero.mp4, /hero.webm]); partial PUT {hero:{video_link:'x'}} preserves siblings (video_media_id, video_kind, headline_lines, stats — the wipe bug is fixed); legacy base64-stored media (6abeae76f932fc8791fc8c55) still served 200 video/mp4 via GridFS-first + legacy fallback; 40 MB + 1 KB raw upload correctly returns 422 with friendly message; raw endpoint accepts arbitrary mime from query (trusted). FINAL STATE RESTORED: hero.video_kind='upload', video_link='', video_media_id='6abed24ce3c1d38a2ac02221' (user's real video intact). No horizontal overflow at 1440px or 390px. /apply renders. Admin login works. Only console errors are the two expected 401 from pre-login /auth/me probe.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_video_modes.py",
+    "/app/test_reports/pytest/video_modes.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py MediaUpload still base64-decodes without a client-side cap — a user could still POST a ~12 MB base64 string to /api/admin/media and hit the 9MB decoded cap. Fine, but the 9MB cap message mentions 'photos up to 5 MB' which is inconsistent (MAX_MEDIA_BYTES=9MB). Low priority wording nit.",
+    "upload_media_raw trusts the ?mime= query param verbatim — no sniffing. Acceptable (admin-only endpoint) but noted. Served Content-Type will reflect whatever admin passes.",
+    "VideoUpload component: clicking an inactive kind-pill triggers an immediate save('hero', {...draft.hero, video_kind:k}) which sends the ENTIRE draft.hero (not just the kind). Combined with the new per-key merge this is fine, but if draft is stale vs server (another tab) it could overwrite siblings. Minor — admin single-user flow."
+  ],
+  "updated_files": ["/app/backend/tests/test_video_modes.py", "/app/test_reports/iteration_8.json"],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "admissions@svinstitutions.co.in / SvAdmin@2025 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Temporary GridFS uploads (256KB + ~500B) created during raw-upload tests, both deleted in-test. No persistent new media created. site_content.hero fully restored at the end of the run (video_kind=upload, video_link='', video_media_id=6abed24ce3c1d38a2ac02221).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Hero video modes are fully functional. Backend pytest file /app/backend/tests/test_video_modes.py is the regression suite for this feature — rerun with `pytest backend/tests/test_video_modes.py -v -n 0`. Known constants: REAL_MEDIA_ID=6abed24ce3c1d38a2ac02221 (user's hero mp4, GridFS), LEGACY_MEDIA_ID=6abeae76f932fc8791fc8c55 (legacy base64 doc still served via fallback). The user-reported 8MB-cap/low-quality issue is resolved via GridFS + the new /api/admin/media/raw endpoint (40MB cap). YouTube embed parsing (_youtube_embed) handles watch?v=, youtu.be/, shorts/, embed/ and 11-char raw IDs.",
+  "rca of the issue": "N/A — all tested fixes work as designed. The partial-PUT merge bug the main agent fixed (`write_content` now flattens section keys into dotted $set) was explicitly re-verified: PUT {hero:{video_link:'x'}} no longer wipes video_media_id, video_kind, headline_lines, stats."
+}
