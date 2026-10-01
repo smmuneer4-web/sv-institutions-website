@@ -189,7 +189,7 @@ export default function ContentPage() {
     if (content && !draft) setDraft(JSON.parse(JSON.stringify(content)));
   }, [content]);
 
-  if (user === null || !content) {
+  if (user === null || !content || !draft) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F8F5F2]">
         <p className="animate-pulse font-display text-2xl text-[#9F1239]">Loading console…</p>
