@@ -41,6 +41,16 @@ export const DEFAULT_CONTENT = {
     hostel_url: "https://images.unsplash.com/photo-1769147555720-71fc71bfc216?q=80&w=1600&auto=format&fit=crop",
     hostel_media_id: null,
   },
+  faq: {
+    items: [
+      { q: "Which nursing courses does S V College of Nursing offer?", a: "We offer three programs — B.Sc Nursing (4 years), M.Sc Nursing (2 years) and GNM — General Nursing & Midwifery (3 years) — with a combined intake of 135 sanctioned seats, all under S V Group of Institutions, Bengaluru." },
+      { q: "Is the college recognised and affiliated?", a: "Yes. S V College of Nursing is affiliated to Rajiv Gandhi University of Health Sciences (RGUHS), Bengaluru, and recognised by the Indian Nursing Council (INC) and Karnataka State Nursing Council (KSNC). Official approval documents are displayed on this website." },
+      { q: "How can I apply for admission?", a: "Apply online using the Apply Now form on this website — it takes about 10 minutes and saves your progress automatically. You can also call +91 90378 34632 or visit the campus at Mallathahalli, Bengaluru." },
+      { q: "Does the college provide hostel facilities?", a: "Yes — separate, secure hostels for female and male students with 24/7 security, resident wardens, mess and study halls on campus." },
+      { q: "Where exactly is the campus located?", a: "80 Feet Ring Road, beside Bangalore University, at Mallathahalli Bus Stop, Bengaluru – 560056. The campus is well connected by BMTC buses to all parts of the city." },
+      { q: "What is the eligibility for B.Sc Nursing?", a: "Candidates should have passed 10+2 (PUC or equivalent) with Physics, Chemistry, Biology and English, and be 17 years of age or older. Our admissions team will walk you through the exact RGUHS criteria and documents needed." },
+    ],
+  },
 };
 
 let cache = null;

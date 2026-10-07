@@ -12,7 +12,9 @@ import Gallery from "./components/Gallery";
 import Affiliations from "./components/Affiliations";
 import Facilities from "./components/Facilities";
 import ApplyForm from "./components/ApplyForm";
+import Faq from "./components/Faq";
 import Footer from "./components/Footer";
+import { useSEO } from "./lib/seo";
 import ApplyPage from "./pages/ApplyPage";
 import AdminPage from "./pages/AdminPage";
 import StudentsPage from "./pages/StudentsPage";
@@ -49,6 +51,12 @@ function ScrollToTop() {
 }
 
 function Landing() {
+  useSEO({
+    title: "S V College of Nursing, Bengaluru | B.Sc, M.Sc & GNM Nursing Admission",
+    description:
+      "S V College of Nursing, Bengaluru — RGUHS-affiliated nursing college recognised by INC & KSNC. B.Sc, M.Sc & GNM nursing programs with modern labs, hospital training & hostels. Admissions open — apply online.",
+    path: "/",
+  });
   return (
     <>
       <Navbar />
@@ -61,6 +69,7 @@ function Landing() {
         <Gallery />
         <Affiliations />
         <Facilities />
+        <Faq />
         <ApplyForm />
       </main>
       <Footer />

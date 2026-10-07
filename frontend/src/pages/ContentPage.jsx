@@ -6,7 +6,7 @@ import FileUpload from "../components/FileUpload";
 import { api, formatApiError } from "../lib/api";
 import {
   Save, Check, X, Trash2, Plus, Instagram, RefreshCw, Video, Image as ImageIcon,
-  Type, Link2, Loader2, Info, Unplug,
+  Type, Link2, Loader2, Info, Unplug, HelpCircle,
 } from "lucide-react";
 
 const TABS = [
@@ -14,6 +14,7 @@ const TABS = [
   { id: "hero", label: "Hero Video & Photo", icon: Video },
   { id: "gallery", label: "Gallery Photos", icon: ImageIcon },
   { id: "facilities", label: "Facilities Photo", icon: ImageIcon },
+  { id: "faq", label: "FAQ", icon: HelpCircle },
   { id: "instagram", label: "Instagram", icon: Instagram },
 ];
 
@@ -485,6 +486,71 @@ export default function ContentPage() {
                   } catch (e) { setErr(formatApiError(e)); }
                 }}
               />
+            </div>
+          )}
+
+          {tab === "faq" && (
+            <div className="rounded-3xl border border-rose-100 bg-white p-6">
+              <p className="text-sm font-bold text-[#22090F]">Frequently asked questions</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Shown in the FAQ section on the landing page — and marked up for Google rich results.
+              </p>
+              <div className="mt-4 space-y-3">
+                {(draft.faq?.items || []).map((it, i) => (
+                  <div key={i} data-testid={`content-faq-item-${i}`} className="rounded-2xl bg-rose-50/50 p-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        data-testid={`content-faq-q-${i}`}
+                        className={inputCls}
+                        placeholder="Question"
+                        value={it.q}
+                        onChange={(e) => {
+                          const items = [...(draft.faq?.items || [])];
+                          items[i] = { ...items[i], q: e.target.value };
+                          setField("faq", "items", items);
+                        }}
+                      />
+                      <button
+                        data-testid={`content-faq-remove-${i}`}
+                        aria-label="Remove question"
+                        onClick={() => setField("faq", "items", (draft.faq?.items || []).filter((_, j) => j !== i))}
+                        className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-100 hover:text-[#9F1239]"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <textarea
+                      data-testid={`content-faq-a-${i}`}
+                      rows={3}
+                      className={`${inputCls} mt-2 resize-none`}
+                      placeholder="Answer"
+                      value={it.a}
+                      onChange={(e) => {
+                        const items = [...(draft.faq?.items || [])];
+                        items[i] = { ...items[i], a: e.target.value };
+                        setField("faq", "items", items);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  data-testid="content-faq-add-button"
+                  onClick={() => setField("faq", "items", [...(draft.faq?.items || []), { q: "", a: "" }])}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#0F766E] px-6 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#0D9488]"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add question
+                </button>
+                <button
+                  data-testid="content-faq-save-button"
+                  onClick={() => save("faq", { items: draft.faq?.items || [] })}
+                  disabled={busy}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-6 py-2.5 text-xs font-bold text-white disabled:opacity-60"
+                >
+                  <Save className="h-3.5 w-3.5" /> Save FAQ
+                </button>
+              </div>
             </div>
           )}
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import { api, formatApiError, clearAuth } from "./api";
+import { useSEO } from "./seo";
 
 export const STATUSES = ["submitted", "shortlist", "approved", "rejected"];
 export const COLLEGES = ["S V College of Nursing", "D R Vijayakumari School of Nursing"];
@@ -71,6 +72,7 @@ export function useApplications(user) {
 import { Link } from "react-router-dom";
 
 export function Topbar({ user, active = "", children }) {
+  useSEO({ title: "Admissions Console — S V Group of Institutions", noindex: true });
   const link = (href, label, key) => (
     <Link
       key={key}

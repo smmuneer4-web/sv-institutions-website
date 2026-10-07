@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, Upload, CheckCircle2, ShieldCheck, X, Copy, Download, RotateCcw, Search, Phone, Mail, MapPin, Loader2 } from "lucide-react";
 import { api, formatApiError } from "../lib/api";
+import { useSEO } from "../lib/seo";
 import FileUpload from "../components/FileUpload";
 import { useColleges } from "../lib/colleges";
 
@@ -130,6 +131,12 @@ function TrackPanel() {
 }
 
 export default function ApplyPage() {
+  useSEO({
+    title: "Apply Online — S V College of Nursing, Bengaluru",
+    description:
+      "Apply for B.Sc, M.Sc or GNM Nursing at S V College of Nursing, Bengaluru. 6-step online application with document upload — save your progress and continue anytime.",
+    path: "/apply",
+  });
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(() => {
     try {
