@@ -344,7 +344,15 @@ export default function ContentPage() {
                 </div>
               </div>
               <div className="sm:col-span-2">
-                <button data-testid="content-details-save-button" onClick={() => save("contact", draft.contact)} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-6 py-2.5 text-xs font-bold text-white disabled:opacity-60">
+                <button
+                  data-testid="content-details-save-button"
+                  onClick={async () => {
+                    await save("contact", draft.contact);
+                    await save("hero", { stats: draft.hero.stats });
+                  }}
+                  disabled={busy}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-6 py-2.5 text-xs font-bold text-white disabled:opacity-60"
+                >
                   <Save className="h-3.5 w-3.5" /> Save Details
                 </button>
               </div>

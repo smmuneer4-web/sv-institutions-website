@@ -92,6 +92,17 @@ Build a landing page for S V College of Nursing (https://littleflowerinstitution
 ## Backlog / Next
 - P1: Email notification (Resend) to admissions on new application/enquiry.
 - P2: WhatsApp Business automation (user deferred) — auto-send reminders instead of manual link.
-- P2: Document uploads (10th/12th marksheets) via object storage; PDF export of applications from dashboard.
 - P2: Real campus photos for gallery when provided.
 - P3: Dashboard inline payment could surface the new receipt no. (toast) for discoverability.
+- P1 (user action): Google Search Console verification + sitemap submit; Google Business Profile for map pack.
+- P1 (pending info): confirm final live domain — SEO tags/canonical/sitemap assume https://www.svinstitutions.co.in; switch if Vercel domain differs.
+
+## Implemented (2026-10-07, session 12 — SEO foundation + FAQ section)
+- User goal: "I want this website to list 1st in google search". Choices: full package (technical SEO + FAQ), deploy route Github+Vercel.
+- Technical SEO: keyword-rich title + meta description, robots meta, canonical, Open Graph + Twitter tags, static JSON-LD @graph (CollegeOrUniversity + ItemList of B.Sc/M.Sc/GNM Courses) in index.html; robots.txt (Disallow /admin*, /api, Sitemap line) + sitemap.xml (with lastmod) in public/.
+- lib/seo.js: useSEO hook (title, description, robots meta, canonical per route). Landing + /apply get indexable titles; ALL /admin* pages get noindex,nofollow via Topbar (one hook covers every admin page).
+- New components/Faq.jsx: CMS-driven accordion (rose/cream design system, Reveal reveals), injected client-side with FAQPage JSON-LD (id faq-schema). Placed between Facilities and ApplyForm.
+- CMS: backend DEFAULT_CONTENT.faq (6 SEO-rich Q&As: courses, affiliation, how to apply, hostel, location, eligibility) merged like other sections; ContentUpdate.faq; ContentPage new FAQ tab (add/edit/remove/save, testids content-faq-*).
+- Fixed (from test review): Save Details now also persists hero.stats edited in the same tab (was silently dropping them); sitemap lastmod added.
+- Tested (iteration_9, 9/9 pass, backend+frontend 100%): FAQ render/toggle, schema injection, served HTML head, robots/sitemap served, per-page titles on SPA nav, admin noindex, CMS FAQ round-trip visible publicly, partial-save regression, admin console loads. Note: editing public/index.html requires `sudo supervisorctl restart frontend` (HtmlWebpackPlugin caches the shell) — production build unaffected.
+- Build verified for Vercel: yarn build clean (16s), robots/sitemap/JSON-LD present in build output.

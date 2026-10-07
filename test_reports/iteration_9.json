@@ -1,0 +1,26 @@
+{
+  "summary": "Verified SEO package + FAQ feature end-to-end. All 9 requested test scenarios pass. Note: required frontend restart (sudo supervisorctl restart frontend) to pick up new /public/index.html — CRA/craco HtmlWebpackPlugin had cached the previous head. After restart the preview URL serves the correct SEO head, FAQ CMS round-trip works (6 -> 7 items, edit visible publicly), per-page titles swap correctly on SPA navigation, admin pages set noindex,nofollow via Topbar's useSEO, Save Details partial update works without regression, and /admin + /admin/students load after login.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "No code changes needed. Operational note for main agent: whenever /public/index.html is edited, the frontend dev server must be restarted (sudo supervisorctl restart frontend) so that the preview URL serves the updated <head>. Vercel production build does not have this issue (static index.html)."
+  ],
+  "critical_code_review_comments": [
+    "Faq.jsx: items use shape {q, a} (matches backend DEFAULT_CONTENT.faq.items). ContentPage FAQ tab also uses q/a — consistent.",
+    "ContentPage Save Details only persists the 'contact' section, not 'hero.stats' which are also edited in the Details tab. Clicking Save Details after editing a hero stat value will silently drop those edits. Not a regression (behaviour unchanged), but worth considering a combined save or a visible warning.",
+    "sitemap.xml only lists / and /apply; if there are indexable deep links (e.g. /admin is intentionally excluded) consider adding lastmod to improve crawl signals."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admissions@svinstitutions.co.in / SvAdmin@2025 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Added a TEST question to FAQ via CMS and removed it in cleanup; restored original answer 0 text.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "SEO head items (title, description, canonical, og:*, twitter:card, CollegeOrUniversity JSON-LD) are confirmed in served HTML after a frontend restart. FAQ section renders 6 default items from /api/content faq.items (shape {q,a}), first item open by default, accordion toggles correctly, faq-schema <script id='faq-schema'> FAQPage JSON-LD exists with 6 Questions. Per-page titles swap on SPA nav. Admin useSEO sets noindex,nofollow on all /admin* pages. CMS FAQ round-trip (edit answer + add question + save) persists and reflects on public landing page immediately. Save Details without changes still returns 200 and shows 'Saved — the website is updated.'",
+  "rca of the issue": "Initial curl of preview URL showed stale <title>S V INSTITUTIONS</title> and old description. Root cause: CRA/craco webpack-dev-server caches /public/index.html via HtmlWebpackPlugin at startup; subsequent edits to /public/index.html don't hot-reload the HTML shell. Mitigation: restart frontend (sudo supervisorctl restart frontend). Verified served HTML afterwards exactly matches /app/frontend/public/index.html."
+}
