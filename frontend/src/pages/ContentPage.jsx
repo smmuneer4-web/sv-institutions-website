@@ -390,6 +390,30 @@ export default function ContentPage() {
               </div>
 
               <div className="rounded-3xl border border-rose-100 bg-white p-6">
+                <p className="text-sm font-bold text-[#22090F]">Video sound</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Browsers always start videos muted — when sound is allowed, visitors get a &ldquo;Tap for sound&rdquo; button on the hero.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {["muted", "on"].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      data-testid={`content-hero-sound-${v}`}
+                      onClick={() => save("hero", { ...draft.hero, video_sound: v })}
+                      className={`rounded-full px-4 py-2 text-xs font-bold transition-all ${
+                        (draft.hero.video_sound || "muted") === v
+                          ? "bg-[#BE185D] text-white shadow-md shadow-rose-200"
+                          : "border border-rose-200 bg-white text-slate-600 hover:border-[#BE185D] hover:text-[#BE185D]"
+                      }`}
+                    >
+                      {v === "muted" ? "Always mute" : "Allow sound"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-rose-100 bg-white p-6">
                 <p className="mb-3 flex items-center gap-2 text-sm font-bold text-[#22090F]"><ImageIcon className="h-4 w-4 text-[#BE185D]" /> Cover photo (shown while the video loads)</p>
                 <FileUpload
                   label="Hero Cover Photo"

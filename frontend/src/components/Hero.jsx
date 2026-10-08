@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { ArrowUpRight, Plus, ChevronDown } from "lucide-react";
+import { ArrowUpRight, Plus, ChevronDown, Volume2, VolumeX } from "lucide-react";
 import { scrollToId } from "../lib/scroll";
 import EnquiryModal from "../components/EnquiryModal";
 import { useContent } from "../lib/content";
@@ -19,13 +19,29 @@ const fade = (d) => ({
 
 export default function Hero() {
   const [enquiryOpen, setEnquiryOpen] = useState(false);
+  const [soundOn, setSoundOn] = useState(false);
   const content = useContent();
   const hero = content.hero;
   const sectionRef = useRef(null);
+  const videoRef = useRef(null);
+  const ytRef = useRef(null);
+  const soundAllowed = hero.video_sound === "on";
   const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start start", "end start"] });
   const videoScale = useTransform(scrollYProgress, [0, 1], [1, 1.14]);
   const videoY = useTransform(scrollYProgress, [0, 1], [0, 90]);
   const contentOpacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
+
+  // React doesn't reliably update the muted DOM property on re-render — drive it via ref
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = !(soundAllowed && soundOn);
+  }, [soundAllowed, soundOn, hero.video_url, hero.video_kind]);
+
+  // YouTube iframes are controlled via the JS API postMessage channel
+  useEffect(() => {
+    if (hero.video_kind !== "youtube" || !ytRef.current?.contentWindow) return;
+    const func = soundAllowed && soundOn ? "unMute" : "mute";
+    ytRef.current.contentWindow.postMessage(JSON.stringify({ event: "command", func, args: [] }), "*");
+  }, [soundAllowed, soundOn, hero.video_embed, hero.video_kind]);
 
   return (
     <section id="top" ref={sectionRef} className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-[#22090F]">
@@ -33,6 +49,7 @@ export default function Hero() {
       <motion.div style={{ scale: videoScale, y: videoY }} className="absolute inset-0" data-testid="hero-video-backdrop">
         {hero.video_kind === "youtube" && hero.video_embed ? (
           <iframe
+            ref={ytRef}
             data-testid="hero-video-youtube"
             src={hero.video_embed}
             title="Hero video"
@@ -42,6 +59,7 @@ export default function Hero() {
           />
         ) : (
           <video
+            ref={videoRef}
             key={hero.video_url}
             data-testid="hero-video"
             poster={hero.poster_url}
@@ -150,18 +168,32 @@ export default function Hero() {
               </div>
             ))}
           </motion.div>
-          <motion.button
-            {...fade(1.2)}
-            data-testid="hero-scroll-cue"
-            onClick={() => scrollToId("#about")}
-            aria-label="Scroll to about"
-            className="hidden flex-col items-center gap-1 text-white/60 transition-colors hover:text-white sm:flex"
-          >
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em]">Scroll</span>
-            <motion.span animate={{ y: [0, 6, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}>
-              <ChevronDown className="h-4 w-4" />
-            </motion.span>
-          </motion.button>
+          <div className="flex items-center gap-4">
+            {soundAllowed && (
+              <button
+                type="button"
+                data-testid="hero-sound-toggle"
+                aria-label={soundOn ? "Mute video" : "Unmute video"}
+                onClick={() => setSoundOn((s) => !s)}
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-5 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/80 backdrop-blur-md transition-all duration-300 hover:border-teal-300/60 hover:text-teal-200"
+              >
+                {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                {soundOn ? "Sound on" : "Tap for sound"}
+              </button>
+            )}
+            <motion.button
+              {...fade(1.2)}
+              data-testid="hero-scroll-cue"
+              onClick={() => scrollToId("#about")}
+              aria-label="Scroll to about"
+              className="hidden flex-col items-center gap-1 text-white/60 transition-colors hover:text-white sm:flex"
+            >
+              <span className="text-[10px] font-bold uppercase tracking-[0.22em]">Scroll</span>
+              <motion.span animate={{ y: [0, 6, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}>
+                <ChevronDown className="h-4 w-4" />
+              </motion.span>
+            </motion.button>
+          </div>
         </div>
       </div>
 

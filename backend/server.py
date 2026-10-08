@@ -1484,6 +1484,7 @@ DEFAULT_CONTENT = {
         "sub": "S V College of Nursing is renowned across India for its excellence in nursing education — affiliated to Rajiv Gandhi University of Health Sciences and recognised by the Indian Nursing Council & Karnataka State Nursing Council.",
         "video_kind": "upload",
         "video_link": "",
+        "video_sound": "muted",
         "video_media_id": None,
         "poster_media_id": None,
         "poster_fallback": "https://images.unsplash.com/photo-1584432810601-6c7f27d2362b?q=80&w=1600&auto=format&fit=crop",
@@ -1531,7 +1532,7 @@ def _youtube_embed(link: str) -> str:
         return ""
     return (
         f"https://www.youtube-nocookie.com/embed/{vid}"
-        "?autoplay=1&mute=1&loop=1&playlist=" + vid + "&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1"
+        "?autoplay=1&mute=1&loop=1&playlist=" + vid + "&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&enablejsapi=1"
     )
 
 

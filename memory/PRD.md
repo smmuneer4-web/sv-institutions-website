@@ -106,3 +106,9 @@ Build a landing page for S V College of Nursing (https://littleflowerinstitution
 - Fixed (from test review): Save Details now also persists hero.stats edited in the same tab (was silently dropping them); sitemap lastmod added.
 - Tested (iteration_9, 9/9 pass, backend+frontend 100%): FAQ render/toggle, schema injection, served HTML head, robots/sitemap served, per-page titles on SPA nav, admin noindex, CMS FAQ round-trip visible publicly, partial-save regression, admin console loads. Note: editing public/index.html requires `sudo supervisorctl restart frontend` (HtmlWebpackPlugin caches the shell) — production build unaffected.
 - Build verified for Vercel: yarn build clean (16s), robots/sitemap/JSON-LD present in build output.
+
+## Implemented (2026-10-08, session 13 — hero video sound control)
+- User request: "Video hero can enable sound of playing video also give a always mute option to enable sound".
+- CMS: hero.video_sound "muted" (default, previous behaviour) | "on". Pill toggle in ContentPage Hero tab (content-hero-sound-muted / -on), saves immediately via existing partial-PUT.
+- Hero.jsx: visitor-facing "Tap for sound" pill in the bottom band (next to scroll cue, testid hero-sound-toggle) shown only when sound allowed. Click unmutes (user gesture satisfies browser autoplay policy); React muted-prop quirk handled by driving video.muted via ref effect. YouTube mode: embed adds enablejsapi=1; toggle posts unMute/mute commands to the iframe contentWindow.
+- Self-tested E2E: sound=on → button visible desktop+mobile (no overflow), muted true→false on click, label swaps to SOUND ON, re-mute works; sound=muted → button hidden, video muted+playing (original cinematic behaviour). yarn build clean. Final state: video_sound=on.
