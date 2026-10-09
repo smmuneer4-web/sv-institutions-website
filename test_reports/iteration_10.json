@@ -1,0 +1,32 @@
+{
+  "summary": "Full test of 'Reels & Testimonials replaces Instagram feed' feature. Backend (pytest, 3/3 passed): GET /api/content exposes testimonials section; PUT /api/admin/content testimonials round-trip (add/edit/remove) works and preserves faq/gallery/hero across partial saves. Frontend (Playwright): public Gallery contains NO Instagram link/icons (gallery-instagram-link absent, 0 instagram svg icons in sections), reels-row absent when CMS empty, after adding a reel via CMS tab the reels-row + reel-card-0 render, video autoplays muted-looping (readyState 4, currentTime 1.63→2.84 within 1.2s), tap-for-sound toggle unmutes video (muted=False after click), overlay shows quote/name/programme correctly, cleanup via CMS removes the reel and reels-row disappears from public site, Admin tabs are [details, hero, gallery, facilities, faq, testimonials] with Instagram tab fully gone, Save button for Reels & Testimonials shows success alert and PUT /api/admin/content returns 200. Lightbox opens on tile click and closes on close-button click. Final CMS state: testimonials.items = [] (clean).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_testimonials_content.py",
+    "/app/test_reports/pytest/testimonials.xml"
+  ],
+  "action_items": [
+    "Minor: Task note claims 'Footer still links to the Instagram PROFILE page (contact.instagram) — intentional and must remain.' However /app/frontend/src/components/Footer.jsx has NO Instagram link at all (never had an href to instagram.com). If a footer IG profile link is actually desired, main agent should add it using contact.instagram handle. If the task note was outdated and no footer IG link is wanted, ignore this item."
+  ],
+  "critical_code_review_comments": [
+    "Reels.jsx autoplay path verified end-to-end with /hero.webm — videos autoplay muted on scroll into view and per-card tap-to-unmute works.",
+    "Partial-update semantics in write_content (per-key dot-merge) correctly preserved: saving testimonials never wiped faq/gallery; saving hero never wiped testimonials.",
+    "Gallery.jsx — lightbox close works but AnimatePresence exit animation takes ~350ms; any test awaiting its removal should wait ≥500ms.",
+    "ContentPage reels tab uses stable testids content-reel-{item,remove,video,name,programme,quote,add,save}-* — good for future regression."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_testimonials_content.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admissions@svinstitutions.co.in / SvAdmin@2025 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Added one TEST reel via CMS and via API, both cleaned up. Final site testimonials.items = [].",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend content model: testimonials:{items:[{id,name,programme,quote,media_id?,video_link?}]}; get_site_content derives item.video_url via _media_url(media_id, video_link). For headless Chromium video tests, use /hero.webm — user's HEVC MP4s and Cloudinary MP4 (v1790891931/SV_Institutions_VideoFull_1.mp4) throw DEMUXER_ERROR_NO_SUPPORTED_STREAMS. onError branded-gradient fallback was not forcibly exercised this iteration (video played successfully with /hero.webm) — if main agent wants coverage of the fallback path, inject an invalid src in a browser dev test. Admin CMS tabs now: details, hero, gallery, facilities, faq, testimonials (Instagram tab removed).",
+  "rca of the issue": "N/A — no bugs found. Only observation: task note mentions footer still has Instagram profile link; code shows no such link in Footer.jsx. Verify intent with product owner."
+}

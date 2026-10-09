@@ -8,7 +8,6 @@ import Marquee from "./components/Marquee";
 import About from "./components/About";
 import Colleges from "./components/Colleges";
 import Courses from "./components/Courses";
-import Gallery from "./components/Gallery";
 import Affiliations from "./components/Affiliations";
 import Facilities from "./components/Facilities";
 import ApplyForm from "./components/ApplyForm";
@@ -66,7 +65,6 @@ function Landing() {
         <About />
         <Colleges />
         <Courses />
-        <Gallery />
         <Affiliations />
         <Facilities />
         <Faq />

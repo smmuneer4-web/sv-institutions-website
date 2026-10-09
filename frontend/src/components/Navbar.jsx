@@ -9,7 +9,6 @@ const LINKS = [
   { label: "About", id: "#about" },
   { label: "Colleges", id: "#colleges" },
   { label: "Programs", id: "#courses" },
-  { label: "Gallery", id: "#gallery" },
   { label: "Facilities", id: "#facilities" },
   { label: "Contact", id: "#contact" },
 ];
