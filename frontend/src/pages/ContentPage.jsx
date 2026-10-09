@@ -544,7 +544,7 @@ export default function ContentPage() {
               <div className="rounded-3xl border border-teal-100 bg-teal-50/50 p-5">
                 <p className="flex items-center gap-2 text-sm font-bold text-[#0F766E]"><Clapperboard className="h-4 w-4" /> Reels — video testimonials</p>
                 <p className="mt-2 text-[12.5px] leading-relaxed text-slate-600">
-                  Short vertical videos from students and parents. The reels row is currently hidden from the website — when you&apos;re ready, ask to place it anywhere (e.g., above the enquiry form).
+                  Short vertical videos from students and parents, shown as a reels-style row just above the enquiry form on the website.
                   Upload an MP4 (up to 40 MB) or paste a direct video link, then add the student&apos;s name, programme and a short quote.
                   A reel without a video stays hidden.
                 </p>

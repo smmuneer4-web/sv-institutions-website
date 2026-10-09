@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { Volume2, VolumeX, Quote } from "lucide-react";
+import { SectionHead } from "./Reveal";
 import { useContent } from "../lib/content";
 
 const ReelCard = ({ item, index }) => {
@@ -87,18 +88,25 @@ export default function Reels() {
   if (!items.length) return null;
 
   return (
-    <div data-testid="reels-row" className="mt-12">
-      <div className="flex items-center gap-3">
-        <span className="h-px w-10 bg-[#BE185D]/40" />
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#BE185D]">
-          Student stories — in their own words
-        </p>
+    <section id="testimonials" data-testid="reels-row" className="py-20 lg:py-28">
+      <div className="mx-auto max-w-7xl px-5 lg:px-10">
+        <SectionHead
+          eyebrow="Student Stories"
+          title={
+            <>
+              Real students,
+              <br />
+              <span className="italic text-[#BE185D]">real stories.</span>
+            </>
+          }
+          sub="Campus life, hospital training and the journey into nursing — hear it directly from our students, in their own words."
+        />
+        <div className="mt-12 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {items.map((it, i) => (
+            <ReelCard key={it.id || i} item={it} index={i} />
+          ))}
+        </div>
       </div>
-      <div className="-mx-5 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] lg:-mx-2 lg:px-2 [&::-webkit-scrollbar]:hidden">
-        {items.map((it, i) => (
-          <ReelCard key={it.id || i} item={it} index={i} />
-        ))}
-      </div>
-    </div>
+    </section>
   );
 }

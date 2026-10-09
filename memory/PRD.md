@@ -118,3 +118,10 @@ Build a landing page for S V College of Nursing (https://littleflowerinstitution
 - Media-format finding: user's two MP4s (GridFS 6abed24ce3c1d38a2ac02221 + Cloudinary SV_Institutions_VideoFull_1.mp4) throw DEMUXER_ERROR_NO_SUPPORTED_STREAMS in Chromium (likely HEVC/iPhone footage); hero survives on /hero.webm fallback. Reels verified fully working with /hero.webm (autoplay muted in view, currentTime advances, tap-unmute keeps playing). Advise H.264 MP4 for reels.
 - Tested: testing agent iteration_10 — 100% backend (pytest 3/3) + frontend (reels round-trip, IG absence, autoplay, sound, lightbox, partial-save regression); self-verified gallery removal desktop+mobile (nav clean, no overflow, build 16s). Reports: /app/test_reports/iteration_10.json.
 - PRESERVED INTENTIONALLY: Reels.jsx + testimonials CMS tab + backend section (hidden from site, one line to re-mount anywhere); ContentPage Gallery Photos tab (photos in CMS but not displayed).
+
+## Implemented (2026-10-09, session 15 — testimonials placed above enquiry form)
+- User pick: "Position the reels testimonials above the enquiry form for best conversion".
+- Reels.jsx now a full standalone section (id="testimonials", SectionHead "Student Stories / Real students, real stories." + sub), mounted in Landing between Faq and ApplyForm. Empty CMS → section absent.
+- Demo reel added via CMS (video /hero.webm, name "Aishwarya R.", B.Sc Nursing 2nd Year) so placement is visible — REPLACE/REMOVE with real student videos in Site Content → Reels & Testimonials (content stays in preview DB; never auto-copied to live).
+- Fixed during placement: missing SectionHead import crashed the landing page (ErrorBoundary caught it) — restored.
+- Self-verified: desktop+mobile, section directly above #apply, autoplay in view (t advances), no overflow, yarn build clean.

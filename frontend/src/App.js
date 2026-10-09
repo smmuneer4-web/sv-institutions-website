@@ -11,6 +11,7 @@ import Courses from "./components/Courses";
 import Affiliations from "./components/Affiliations";
 import Facilities from "./components/Facilities";
 import ApplyForm from "./components/ApplyForm";
+import Reels from "./components/Reels";
 import Faq from "./components/Faq";
 import Footer from "./components/Footer";
 import { useSEO } from "./lib/seo";
@@ -68,6 +69,7 @@ function Landing() {
         <Affiliations />
         <Facilities />
         <Faq />
+        <Reels />
         <ApplyForm />
       </main>
       <Footer />
