@@ -1518,6 +1518,9 @@ DEFAULT_CONTENT = {
             {"q": "What is the eligibility for B.Sc Nursing?", "a": "Candidates should have passed 10+2 (PUC or equivalent) with Physics, Chemistry, Biology and English, and be 17 years of age or older. Our admissions team will walk you through the exact RGUHS criteria and documents needed."},
         ],
     },
+    "testimonials": {
+        "items": [],
+    },
 }
 
 
@@ -1549,13 +1552,14 @@ class ContentUpdate(BaseModel):
     gallery: Optional[Dict[str, Any]] = None
     facilities: Optional[Dict[str, Any]] = None
     faq: Optional[Dict[str, Any]] = None
+    testimonials: Optional[Dict[str, Any]] = None
 
 
 async def get_site_content() -> dict:
     doc = await db.site_content.find_one({"_id": "site"})
     base = json.loads(json.dumps(DEFAULT_CONTENT))  # deep copy
     if doc:
-        for section in ("contact", "hero", "gallery", "facilities", "faq"):
+        for section in ("contact", "hero", "gallery", "facilities", "faq", "testimonials"):
             if isinstance(doc.get(section), dict):
                 base[section].update(doc[section])
     hero = base["hero"]
@@ -1569,6 +1573,8 @@ async def get_site_content() -> dict:
     facilities["hostel_img"] = _media_url(facilities.get("hostel_media_id"), facilities.get("hostel_url"))
     for photo in base["gallery"].get("photos", []):
         photo["img"] = _media_url(photo.get("media_id"), photo.get("url"))
+    for item in base["testimonials"].get("items", []):
+        item["video_url"] = _media_url(item.get("media_id"), item.get("video_link"))
     return base
 
 
@@ -1580,7 +1586,7 @@ async def read_content():
 @api_router.put("/admin/content")
 async def write_content(input: ContentUpdate, user: dict = Depends(get_current_user)):
     set_fields = {}
-    for section in ("contact", "hero", "gallery", "facilities", "faq"):
+    for section in ("contact", "hero", "gallery", "facilities", "faq", "testimonials"):
         value = getattr(input, section)
         if value is not None:
             if not isinstance(value, dict):

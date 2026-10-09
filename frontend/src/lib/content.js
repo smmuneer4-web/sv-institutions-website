@@ -52,6 +52,9 @@ export const DEFAULT_CONTENT = {
       { q: "What is the eligibility for B.Sc Nursing?", a: "Candidates should have passed 10+2 (PUC or equivalent) with Physics, Chemistry, Biology and English, and be 17 years of age or older. Our admissions team will walk you through the exact RGUHS criteria and documents needed." },
     ],
   },
+  testimonials: {
+    items: [],
+  },
 };
 
 let cache = null;

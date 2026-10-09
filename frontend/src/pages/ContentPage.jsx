@@ -5,8 +5,7 @@ import { useContentStrict, refetchContent, uploadMedia, uploadMediaRaw } from ".
 import FileUpload from "../components/FileUpload";
 import { api, formatApiError } from "../lib/api";
 import {
-  Save, Check, X, Trash2, Plus, Instagram, RefreshCw, Video, Image as ImageIcon,
-  Type, Link2, Loader2, Info, Unplug, HelpCircle,
+  Save, Trash2, Plus, Video, Image as ImageIcon, Type, Loader2, HelpCircle, Clapperboard,
 } from "lucide-react";
 
 const TABS = [
@@ -15,7 +14,7 @@ const TABS = [
   { id: "gallery", label: "Gallery Photos", icon: ImageIcon },
   { id: "facilities", label: "Facilities Photo", icon: ImageIcon },
   { id: "faq", label: "FAQ", icon: HelpCircle },
-  { id: "instagram", label: "Instagram", icon: Instagram },
+  { id: "testimonials", label: "Reels & Testimonials", icon: Clapperboard },
 ];
 
 const inputCls = "form-input";
@@ -134,105 +133,59 @@ const VideoUpload = ({ label, kind, link, mediaId, currentUrl, onKindChange, onL
   );
 };
 
-const InstagramTab = ({ content }) => {
-  const [token, setToken] = useState("");
-  const [username, setUsername] = useState(content.contact.instagram || "svgoiofficial");
-  const [appId, setAppId] = useState("");
-  const [appSecret, setAppSecret] = useState("");
+const ReelVideoPicker = ({ testid, mediaId, link, currentUrl, onUploaded, onLinkChange }) => {
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
-  const [status, setStatus] = useState(null);
 
-  const loadStatus = () =>
-    api.get("/instagram/posts")
-      .then(({ data }) => setStatus({ connected: data.connected, count: data.posts.length, latest: data.posts[0] }))
-      .catch(() => setStatus(null));
-
-  useEffect(() => {
-    loadStatus();
-  }, []);
-
-  const connect = () => {
+  const pick = async (file) => {
+    if (!file) return;
+    if (!/^video\/(mp4|webm|quicktime)$/.test(file.type)) {
+      setErr("Please choose an MP4 or WebM video.");
+      return;
+    }
+    if (file.size > 40 * 1024 * 1024) {
+      setErr("Video is larger than 40 MB — use a direct video link instead.");
+      return;
+    }
     setBusy(true);
     setErr("");
-    setMsg("");
-    api.post("/admin/instagram", { token, username, app_id: appId, app_secret: appSecret })
-      .then(({ data }) => {
-        setMsg(`Connected! ${data.posts} latest posts synced from @${data.username}.`);
-        setToken("");
-        setAppSecret("");
-        loadStatus();
-        refetchContent();
-      })
-      .catch((e) => setErr(formatApiError(e)))
-      .finally(() => setBusy(false));
-  };
-
-  const disconnect = () => {
-    setBusy(true);
-    api.delete("/admin/instagram")
-      .then(() => {
-        setMsg("Instagram disconnected.");
-        loadStatus();
-      })
-      .catch(() => {})
-      .finally(() => setBusy(false));
+    try {
+      const media = await uploadMediaRaw(file);
+      onUploaded(media.id);
+    } catch (e) {
+      setErr(formatApiError(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <div className="space-y-5" data-testid="content-instagram-tab">
-      <div className="flex items-center justify-between gap-4 rounded-2xl border border-rose-100 bg-white px-6 py-4">
-        <div>
-          <p className="text-sm font-bold text-[#22090F]">{status?.connected ? "Instagram connected" : "Instagram not connected"}</p>
-          <p className="mt-0.5 text-xs text-slate-400">
-            {status?.connected ? `Live feed active — ${status.count} cached post(s)` : "Paste a token below to show your latest posts in the gallery."}
-          </p>
+    <div data-testid={testid}>
+      <Label>Video (vertical 9:16 works best)</Label>
+      <div className="space-y-3 rounded-2xl border border-rose-100 bg-white p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold ${mediaId ? "bg-teal-50 text-[#0F766E]" : "bg-slate-100 text-slate-500"}`}>
+            <Video className="h-3.5 w-3.5" /> {mediaId ? "Video uploaded" : link ? "Using link" : "No video yet"}
+          </span>
+          <label className="cursor-pointer rounded-full bg-[#BE185D] px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#9F1239]">
+            {busy ? <Loader2 className="inline h-3.5 w-3.5 animate-spin" /> : "Upload video (max 40 MB)"}
+            <input type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" data-testid={`${testid}-file-input`} onChange={(e) => pick(e.target.files?.[0])} />
+          </label>
+          {currentUrl && <a href={currentUrl} target="_blank" rel="noreferrer" className="text-xs font-bold text-[#BE185D] hover:underline">Preview current</a>}
+          {mediaId && (
+            <button type="button" onClick={() => onUploaded(null)} className="text-xs font-bold text-slate-400 hover:text-[#9F1239]">
+              Remove video
+            </button>
+          )}
         </div>
-        {status?.connected && (
-          <button data-testid="instagram-disconnect-button" onClick={disconnect} disabled={busy} className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-5 py-2.5 text-xs font-bold text-[#9F1239]">
-            <Unplug className="h-3.5 w-3.5" /> Disconnect
-          </button>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-teal-100 bg-teal-50/50 p-5">
-        <p className="flex items-center gap-2 text-sm font-bold text-[#0F766E]"><Info className="h-4 w-4" /> How to get your access token</p>
-        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[12.5px] leading-relaxed text-slate-600">
-          <li>Set your Instagram account to <b>Business / Creator</b> (Instagram → Settings → Account type).</li>
-          <li>Go to <b>developers.facebook.com → My Apps → Create App</b> and add the <b>Instagram → API setup with Instagram Login</b> product.</li>
-          <li>Easy path: in the app's <b>API setup</b> page, click <b>"Generate token"</b> for @svgoiofficial — that token is already long-lived (60 days). Paste it below and connect.</li>
-          <li>Alternate path: generate a 1-hour token in <b>Graph API Explorer</b> (permission <b>instagram_business_basic</b>), then also paste your <b>App Secret</b> (App settings → Basic) — the site exchanges it to a 60-day token automatically.</li>
-        </ol>
-      </div>
-
-      <div className="grid gap-4 rounded-2xl border border-rose-100 bg-white p-6 sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <Label>Access Token *</Label>
-          <input data-testid="instagram-token-input" type="password" className={inputCls} placeholder="IGQVJ..." value={token} onChange={(e) => setToken(e.target.value)} />
-        </div>
-        <div>
-          <Label>Instagram Username</Label>
-          <input data-testid="instagram-username-input" className={inputCls} value={username} onChange={(e) => setUsername(e.target.value)} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>App Secret (optional)</Label>
-            <input data-testid="instagram-secret-input" type="password" className={inputCls} value={appSecret} onChange={(e) => setAppSecret(e.target.value)} />
-          </div>
-          <div>
-            <Label>App ID (Facebook tokens only)</Label>
-            <input data-testid="instagram-appid-input" className={inputCls} value={appId} onChange={(e) => setAppId(e.target.value)} />
-          </div>
-        </div>
-        <div className="flex items-center gap-2 sm:col-span-2">
-          <button data-testid="instagram-connect-button" onClick={connect} disabled={busy || !token.trim()} className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-6 py-2.5 text-xs font-bold text-white disabled:opacity-50">
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />} Save &amp; Connect
-          </button>
-          <p className="text-[11px] text-slate-400">Stored server-side only — never shown in the site or browser.</p>
-        </div>
-        {msg && <p data-testid="instagram-success" className="rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 sm:col-span-2">{msg}</p>}
-        {err && <p data-testid="instagram-error" className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-medium text-[#9F1239] sm:col-span-2">{err}</p>}
+        <input
+          data-testid={`${testid}-link-input`}
+          className={inputCls}
+          placeholder="…or paste a direct video link (MP4 / WebM)"
+          value={link}
+          onChange={(e) => onLinkChange(e.target.value)}
+        />
+        {err && <p className="text-[11px] font-semibold text-[#9F1239]">{err}</p>}
       </div>
     </div>
   );
@@ -586,7 +539,116 @@ export default function ContentPage() {
             </div>
           )}
 
-          {tab === "instagram" && <InstagramTab content={draft} />}
+          {tab === "testimonials" && (
+            <div className="space-y-5">
+              <div className="rounded-3xl border border-teal-100 bg-teal-50/50 p-5">
+                <p className="flex items-center gap-2 text-sm font-bold text-[#0F766E]"><Clapperboard className="h-4 w-4" /> Reels — video testimonials</p>
+                <p className="mt-2 text-[12.5px] leading-relaxed text-slate-600">
+                  Short vertical videos from students and parents, shown as a reels-style row in the Gallery section of the website.
+                  Upload an MP4 (up to 40 MB) or paste a direct video link, then add the student&apos;s name, programme and a short quote.
+                  A reel without a video stays hidden.
+                </p>
+              </div>
+
+              {(draft.testimonials?.items || []).map((it, i) => (
+                <div key={it.id || i} data-testid={`content-reel-item-${i}`} className="rounded-3xl border border-rose-100 bg-white p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold text-[#22090F]">Reel {i + 1}</p>
+                    <button
+                      data-testid={`content-reel-remove-${i}`}
+                      aria-label="Remove reel"
+                      onClick={() => setField("testimonials", "items", (draft.testimonials?.items || []).filter((_, j) => j !== i))}
+                      className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-[#9F1239]"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <ReelVideoPicker
+                      testid={`content-reel-video-${i}`}
+                      mediaId={it.media_id || null}
+                      link={it.video_link || ""}
+                      currentUrl={it.video_url}
+                      onUploaded={(mediaId) => {
+                        const items = [...(draft.testimonials?.items || [])];
+                        items[i] = { ...items[i], media_id: mediaId, video_link: mediaId ? "" : items[i].video_link };
+                        setField("testimonials", "items", items);
+                      }}
+                      onLinkChange={(v) => {
+                        const items = [...(draft.testimonials?.items || [])];
+                        items[i] = { ...items[i], video_link: v, media_id: v ? null : items[i].media_id };
+                        setField("testimonials", "items", items);
+                      }}
+                    />
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Name</Label>
+                        <input
+                          data-testid={`content-reel-name-${i}`}
+                          className={inputCls}
+                          placeholder="Student or parent name"
+                          value={it.name || ""}
+                          onChange={(e) => {
+                            const items = [...(draft.testimonials?.items || [])];
+                            items[i] = { ...items[i], name: e.target.value };
+                            setField("testimonials", "items", items);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label>Programme</Label>
+                        <input
+                          data-testid={`content-reel-programme-${i}`}
+                          className={inputCls}
+                          placeholder="B.Sc Nursing, 2nd Year"
+                          value={it.programme || ""}
+                          onChange={(e) => {
+                            const items = [...(draft.testimonials?.items || [])];
+                            items[i] = { ...items[i], programme: e.target.value };
+                            setField("testimonials", "items", items);
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label>Quote</Label>
+                      <textarea
+                        data-testid={`content-reel-quote-${i}`}
+                        rows={2}
+                        className={`${inputCls} resize-none`}
+                        placeholder="What they say about studying here…"
+                        value={it.quote || ""}
+                        onChange={(e) => {
+                          const items = [...(draft.testimonials?.items || [])];
+                          items[i] = { ...items[i], quote: e.target.value };
+                          setField("testimonials", "items", items);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  data-testid="content-reel-add-button"
+                  onClick={() => setField("testimonials", "items", [...(draft.testimonials?.items || []), { id: `r-${Date.now()}`, media_id: null, video_link: "", name: "", programme: "", quote: "" }])}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#0F766E] px-6 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#0D9488]"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add reel
+                </button>
+                <button
+                  data-testid="content-reel-save-button"
+                  onClick={() => save("testimonials", { items: draft.testimonials?.items || [] })}
+                  disabled={busy}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#BE185D] px-6 py-2.5 text-xs font-bold text-white disabled:opacity-60"
+                >
+                  <Save className="h-3.5 w-3.5" /> Save Reels &amp; Testimonials
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

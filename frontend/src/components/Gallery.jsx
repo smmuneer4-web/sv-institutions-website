@@ -1,31 +1,21 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Instagram, Heart, MessageCircle } from "lucide-react";
+import { X } from "lucide-react";
 import { Reveal, SectionHead } from "../components/Reveal";
 import { useLenisStop } from "../lib/scroll";
 import { useContent } from "../lib/content";
-import { api } from "../lib/api";
+import Reels from "./Reels";
 
 export default function Gallery() {
   const [lightbox, setLightbox] = useState(null);
-  const [igPosts, setIgPosts] = useState([]);
   const content = useContent();
   useLenisStop(!!lightbox);
 
-  const handle = content.contact.instagram || "svgoiofficial";
-  const INSTAGRAM_URL = `https://www.instagram.com/${handle}`;
-
-  useEffect(() => {
-    api.get("/instagram/posts")
-      .then(({ data }) => {
-        if (data.connected && data.posts.length) setIgPosts(data.posts);
-      })
-      .catch(() => {});
-  }, []);
-
-  const photos = igPosts.length
-    ? igPosts.slice(0, 6).map((p) => ({ img: p.image, caption: p.caption || "Instagram post", tag: "Instagram", href: p.permalink }))
-    : content.gallery.photos.map((p) => ({ img: p.img || p.url, caption: p.caption, tag: p.tag || "Campus" }));
+  const photos = content.gallery.photos.map((p) => ({
+    img: p.img || p.url,
+    caption: p.caption,
+    tag: p.tag || "Campus",
+  }));
 
   return (
     <section id="gallery" className="bg-gradient-to-b from-transparent via-rose-50/50 to-transparent py-20 lg:py-28">
@@ -39,74 +29,36 @@ export default function Gallery() {
               <span className="italic text-[#BE185D]">in action.</span>
             </>
           }
-          sub={igPosts.length
-            ? "The latest from our official Instagram — labs, hostels and hospital training as it happens."
-            : "Labs, hostels and hospital training — a glimpse of the everyday moments that shape our students into confident nursing professionals."}
+          sub="Labs, hostels and hospital training — a glimpse of the everyday moments that shape our students into confident nursing professionals."
         />
 
         <Reveal delay={0.1}>
-          <a
-            data-testid="gallery-instagram-link"
-            href={INSTAGRAM_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-10 flex items-center justify-between gap-4 rounded-2xl border border-rose-100 bg-white px-5 py-4 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <div className="flex items-center gap-3.5">
-              <span className="rounded-full bg-gradient-to-tr from-[#F59E0B] via-[#BE185D] to-[#6E0A28] p-[3px]">
-                <img src="/sv-logo.png" alt="Instagram profile" className="h-11 w-11 rounded-full border-2 border-white object-cover" />
-              </span>
-              <span>
-                <span className="block text-sm font-bold text-[#22090F]">S V Group of Institutions</span>
-                <span className="block text-xs font-medium text-slate-400">@{handle} · {igPosts.length ? "Live feed" : "Campus feed"}</span>
-              </span>
-            </div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#BE185D] to-[#9F1239] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-200 transition-transform hover:scale-[1.03]">
-              <Instagram className="h-4 w-4" /> Follow
-            </span>
-          </a>
+          <Reels />
         </Reveal>
 
-        <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2.5">
-          {photos.map((img, i) => {
-            const inner = (
-              <>
+        <div className="mt-10 grid grid-cols-3 gap-1.5 sm:gap-2.5">
+          {photos.map((img, i) => (
+            <Reveal key={img.img || i} delay={0.06 * i}>
+              <button
+                data-testid={`gallery-tile-${i}`}
+                onClick={() => setLightbox(img)}
+                className="group relative block aspect-square w-full overflow-hidden rounded-lg bg-rose-50 sm:rounded-xl"
+              >
                 <img
                   src={img.img}
                   alt={img.caption}
                   loading="lazy"
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#22090F]/70 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                  <div className="flex items-center gap-4 text-white">
-                    <span className="flex items-center gap-1.5 text-xs font-bold"><Heart className="h-4 w-4 fill-white" /></span>
-                    <span className="flex items-center gap-1.5 text-xs font-bold"><MessageCircle className="h-4 w-4 fill-white" /></span>
-                  </div>
-                  <p className="hidden max-w-[85%] text-center font-display text-[12.5px] font-medium leading-snug text-white sm:block">{img.caption}</p>
+                <div className="absolute inset-0 flex items-end bg-gradient-to-t from-[#22090F]/70 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                  <p className="w-full p-3 text-left font-display text-[12.5px] font-medium leading-snug text-white sm:p-4">{img.caption}</p>
                 </div>
-                <span className="absolute right-2 top-2 text-white drop-shadow transition-opacity duration-300 group-hover:opacity-0">
-                  <Instagram className="h-3.5 w-3.5" />
-                </span>
-              </>
-            );
-            const cls = "group relative block aspect-square w-full overflow-hidden rounded-lg bg-rose-50 sm:rounded-xl";
-            return (
-              <Reveal key={img.href || img.img || i} delay={0.06 * i}>
-                {img.href ? (
-                  <a data-testid={`gallery-tile-${i}`} href={img.href} target="_blank" rel="noreferrer" className={cls}>
-                    {inner}
-                  </a>
-                ) : (
-                  <button data-testid={`gallery-tile-${i}`} onClick={() => setLightbox(img)} className={cls}>
-                    {inner}
-                  </button>
-                )}
-              </Reveal>
-            );
-          })}
+              </button>
+            </Reveal>
+          ))}
         </div>
 
-        <p className="mt-4 text-center text-xs text-slate-400 sm:hidden">Tap a photo to view — follow @{handle} for more campus moments.</p>
+        <p className="mt-4 text-center text-xs text-slate-400 sm:hidden">Tap a photo to view.</p>
       </div>
 
       <AnimatePresence>
